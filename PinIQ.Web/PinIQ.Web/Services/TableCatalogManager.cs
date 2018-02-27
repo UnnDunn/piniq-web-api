@@ -54,7 +54,7 @@ namespace Pinball.Web.Services
         public async Task DeleteCatalogAsync(int id)
         {
             var entity = await _context.PinballTableCatalog.FindAsync(id);
-            if (entity == null) throw new Exception("Catalog not found");
+            if (entity == null) throw new InvalidOperationException("Catalog not found");
             _context.PinballTableCatalog.Remove(entity);
             await _context.SaveChangesAsync();
         }
@@ -62,7 +62,7 @@ namespace Pinball.Web.Services
         public async Task PublishCatalogAsync(int id, string publisherId)
         {
             var catalog = await _context.PinballTableCatalog.FindAsync(id);
-            if (catalog == null) throw new Exception("Catalog not found");
+            if (catalog == null) throw new InvalidOperationException("Catalog not found");
 
             catalog.PublisherID = publisherId;
             catalog.PublishDate = DateTime.UtcNow;

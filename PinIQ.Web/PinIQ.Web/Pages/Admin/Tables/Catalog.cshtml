@@ -7,7 +7,7 @@
 <h2>Table Catalog @Model.TableCatalog.ID</h2>
 
 <div class="row">
-    <div class="col-lg-4">
+    <div class="col-md-6 col-sm-12">
         <dl class="dl-horizontal">
             <dt>@Html.DisplayNameFor(m => m.TableCatalog.UploadDate)</dt>
             <dd>@Html.DisplayFor(m => m.TableCatalog.UploadDate) by @Model.TableCatalog.Uploader.UserName</dd>
@@ -15,12 +15,18 @@
     </div>
     @if (Model.TableCatalog.Publisher != null)
     {
-    <div class="col-lg-4">
+    <div class="col-md-6 col-sm-12">
         <dl class="dl-horizontal">
             <dt>@Html.DisplayNameFor(m => m.TableCatalog.PublishDate)</dt>
             <dd>@Html.DisplayFor(m => m.TableCatalog.PublishDate) by @Model.TableCatalog.Publisher.UserName</dd>
         </dl>
     </div>
+    }
+    else
+    {
+        <div class="col-md-6 col-sm-12">
+            <a class="btn btn-lg btn-default" asp-page="./Publish" asp-route-id="@Model.TableCatalog.ID">Publish This Catalog</a>
+        </div>
     }
 </div>
 
