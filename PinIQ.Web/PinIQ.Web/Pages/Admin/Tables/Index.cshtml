@@ -1,0 +1,89 @@
+﻿@page
+@model Pinball.Web.Pages.Admin.Tables.IndexModel
+@{
+    ViewData["Title"] = "Table Catalogs";
+}
+
+<h2>Table Catalogs</h2>
+
+<h3>Upload Catalog</h3>
+<div class="row">
+    <div class="col-md-4">
+        <form method="post" enctype="multipart/form-data">
+            @*<div class="form-group">
+                    <label asp-for="CatalogUpload.Name" class="control-label"></label>
+                    <input asp-for="CatalogUpload.Name" class="form-control" type="text"/>
+                    <span asp-validation-for="CatalogUpload.Name" class="text-danger"></span>
+                </div>*@
+            <div class="form-group">
+                <label asp-for="CatalogUpload.PinballTableHtml" class="control-label"></label>
+                <input asp-for="CatalogUpload.PinballTableHtml" class="form-control" type="file" />
+                <span asp-validation-for="CatalogUpload.PinballTableHtml" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="CatalogUpload.AbbreviationHtml" class="control-label"></label>
+                <input asp-for="CatalogUpload.AbbreviationHtml" class="form-control" type="file" />
+                <span asp-validation-for="CatalogUpload.AbbreviationHtml" class="text-danger"></span>
+            </div>
+            <input type="submit" class="btn btn-default" value="Upload Catalog" />
+            <input type="hidden" asp-for="CatalogUpload.Name" value="File upload" />
+        </form>
+    </div>
+</div>
+
+<h3>All Catalogs</h3>
+@if (Model.Catalogs.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>
+                    @Html.DisplayNameFor(m => m.Catalogs[0].ID)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(m => m.Catalogs[0].UploadDate)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(m => m.Catalogs[0].RawTableDataSize)
+                </th>
+                <th>
+                    @Html.DisplayNameFor(m => m.Catalogs[0].RawAbbreviationDataSize)
+                </th>
+                <th>
+
+                </th>
+            </tr>
+        </thead>
+        @foreach (var catalog in Model.Catalogs)
+        {
+            <tbody>
+                <tr data-id="@catalog.ID">
+                    <td>
+                        @Html.DisplayFor(i => catalog.ID)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(i => catalog.UploadDate)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(i => catalog.RawTableDataSize)
+                    </td>
+                    <td>
+                        @Html.DisplayFor(i => catalog.RawAbbreviationDataSize)
+                    </td>
+                    <td>
+                        <a class="btn btn-sm" asp-page="./Catalog" asp-route-id="@catalog.ID">Details</a>
+
+                    </td>
+                </tr>
+            </tbody>
+        }
+    </table>
+}
+else
+{
+    <p class="alert alert-info">There are no catalogs available.</p>
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
