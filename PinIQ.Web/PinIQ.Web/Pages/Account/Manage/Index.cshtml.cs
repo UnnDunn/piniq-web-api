@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +8,7 @@ using Pinball.Web.Data;
 using Pinball.Web.Extensions;
 using Pinball.Web.Services;
 
-namespace PinIQ.Web.Pages.Account.Manage
+namespace Pinball.Web.Pages.Account.Manage
 {
     public partial class IndexModel : PageModel
     {

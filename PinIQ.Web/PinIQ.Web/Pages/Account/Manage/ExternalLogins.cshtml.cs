@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Pinball.Web.Data;
 
-namespace PinIQ.Web.Pages.Account.Manage
+namespace Pinball.Web.Pages.Account.Manage
 {
     public class ExternalLoginsModel : PageModel
     {

@@ -1,20 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-public class SignedOutModel : PageModel
+namespace Pinball.Web.Pages.Account
 {
-    public IActionResult OnGet()
+    [AllowAnonymous]
+    public class SignedOutModel : PageModel
     {
-        if (User.Identity.IsAuthenticated)
+        public IActionResult OnGet()
         {
-            // Redirect to home page if the user is authenticated.
-            return RedirectToPage("/Index");
-        }
+            if (User.Identity.IsAuthenticated)
+            {
+                // Redirect to home page if the user is authenticated.
+                return RedirectToPage("/Index");
+            }
 
-        return Page();
+            return Page();
+        }
     }
 }
