@@ -53,6 +53,8 @@ namespace Pinball.Api
             {
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "PinIQ API V1");
             });
+
+			app.UseStaticFiles();
 		}
 	}
 }
