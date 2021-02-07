@@ -1,8 +1,14 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Pinball.Api.Data;
+using Pinball.Api.Services.Interfaces;
+using Pinball.Api.Services.Interfaces.Impl;
+using Pinball.OpdbClient.Entities;
+using Pinball.OpdbClient.Interfaces;
 
 namespace Pinball.Api
 {
@@ -18,6 +24,16 @@ namespace Pinball.Api
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
+			services.AddHttpClient();
+
+			services.AddDbContext<PinballDbContext>(options =>
+				options.UseSqlServer(Configuration.GetConnectionString("PinballDbContext")));
+
+			services.Configure<OpdbClientOptions>(Configuration.GetSection("Opdb"));
+			services.AddScoped<IOpdbClient, OpdbClient.Interfaces.Impl.OpdbClient>();
+			services.AddScoped<IPinballMachineCatalogService, PinballMachineCatalogService>();
+			services.AddScoped<ITestOpdbService, TestOpdbService>();
+
 			services.AddControllers();
 
             services.AddMvcCore().AddApiExplorer();

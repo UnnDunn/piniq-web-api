@@ -9,7 +9,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{41
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Data", "Data", "{0529E135-37A2-4D2B-BE17-22C58AE3D5B9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pinball.Api", "Pinball.Api\Pinball.Api.csproj", "{D053EA88-2C06-42ED-A27C-D17F3A85489F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pinball.Api", "Pinball.Api\Pinball.Api.csproj", "{D053EA88-2C06-42ED-A27C-D17F3A85489F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pinball.Api.Services", "Pinball.Api.Services\Pinball.Api.Services.csproj", "{C5B95476-BADC-467C-BEFE-7234AFD29F59}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pinball.OpdbClient", "Pinball.Opdb.Client\Pinball.OpdbClient.csproj", "{90038B8D-EC85-4BF1-85BF-96C1355CA827}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pinball.Api.Data", "Pinball.Api.Data\Pinball.Api.Data.csproj", "{E4C78B31-9DDE-483A-BDD9-54EFBB84670B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SQL Snippets", "SQL Snippets", "{42DA4DC5-E7AD-49BB-AA21-70257CA2569E}"
+	ProjectSection(SolutionItems) = preProject
+		Pinball Machine Queries.sql = Pinball Machine Queries.sql
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,12 +32,28 @@ Global
 		{D053EA88-2C06-42ED-A27C-D17F3A85489F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D053EA88-2C06-42ED-A27C-D17F3A85489F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D053EA88-2C06-42ED-A27C-D17F3A85489F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C5B95476-BADC-467C-BEFE-7234AFD29F59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C5B95476-BADC-467C-BEFE-7234AFD29F59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C5B95476-BADC-467C-BEFE-7234AFD29F59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C5B95476-BADC-467C-BEFE-7234AFD29F59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90038B8D-EC85-4BF1-85BF-96C1355CA827}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90038B8D-EC85-4BF1-85BF-96C1355CA827}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90038B8D-EC85-4BF1-85BF-96C1355CA827}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90038B8D-EC85-4BF1-85BF-96C1355CA827}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E4C78B31-9DDE-483A-BDD9-54EFBB84670B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E4C78B31-9DDE-483A-BDD9-54EFBB84670B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E4C78B31-9DDE-483A-BDD9-54EFBB84670B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E4C78B31-9DDE-483A-BDD9-54EFBB84670B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{D053EA88-2C06-42ED-A27C-D17F3A85489F} = {322EB3E2-1040-43C7-9B26-FA20E2EDADB0}
+		{C5B95476-BADC-467C-BEFE-7234AFD29F59} = {41C76B0C-EB45-4408-95ED-3F58049CD997}
+		{90038B8D-EC85-4BF1-85BF-96C1355CA827} = {41C76B0C-EB45-4408-95ED-3F58049CD997}
+		{E4C78B31-9DDE-483A-BDD9-54EFBB84670B} = {0529E135-37A2-4D2B-BE17-22C58AE3D5B9}
+		{42DA4DC5-E7AD-49BB-AA21-70257CA2569E} = {0529E135-37A2-4D2B-BE17-22C58AE3D5B9}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {433BBF95-D05C-475D-871C-58949A8B5E1B}

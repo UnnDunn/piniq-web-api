@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pinball.Api.Data\Pinball.Api.Data.csproj" />
+    <ProjectReference Include="..\Pinball.Opdb.Client\Pinball.OpdbClient.csproj" />
+  </ItemGroup>
+
+</Project>
