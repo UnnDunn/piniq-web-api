@@ -10,6 +10,7 @@ using Pinball.OpdbClient.Helpers;
 using Pinball.OpdbClient.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -21,8 +22,8 @@ namespace Pinball.Api.Services.Interfaces.Impl
 {
     public class PinballMachineCatalogService : IPinballMachineCatalogService
     {
-        private IOpdbClient _opdbClient;
-        private PinballDbContext _dbContext;
+        private readonly IOpdbClient _opdbClient;
+        private readonly PinballDbContext _dbContext;
 
         public PinballMachineCatalogService(IOpdbClient opdbClient, PinballDbContext dbContext)
         {
@@ -58,13 +59,13 @@ namespace Pinball.Api.Services.Interfaces.Impl
             await _dbContext.SaveChangesAsync();
         }
 
-        public async Task<OpdbCatalogSnapshot> GetCatalogSnapshotAsync(int id)
+        public async Task<OpdbCatalogSnapshot?> GetCatalogSnapshotAsync(int id)
         {
             var result = await _dbContext.CatalogSnapshots.FindAsync(id);
             return result;
         }
 
-        public async Task<OpdbCatalogSnapshot> GetPublishedCatalogSnapshotAsync()
+        public async Task<OpdbCatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
         {
             var result = await _dbContext.CatalogSnapshots
                                          .Where(s => s.Published != null)
@@ -119,51 +120,51 @@ namespace Pinball.Api.Services.Interfaces.Impl
                 throw new CatalogSnapshotException(latestSnapshot.Id, "The latest snapshot has already been published");
             }
 
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse)))
-            using (var mgs = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineGroupJsonResponse)))
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
+            using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineGroupJsonResponse));
+            var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
+            var machineGroups = await JsonSerializer.DeserializeAsync<IEnumerable<MachineGroup>>(mgs);
+
+            if (machines is null || machineGroups is null)
+                throw new Exception("Machine snapshot JSON could not be parsed.");
+            await LoadMachineGroupsAsync(machineGroups);
+
+            // manufacturers
+            var manufacturers = machines
+                .Where(m => m.Manufacturer != null)
+                .Select(m => m.Manufacturer).Distinct(new ManufacturerComparer()).ToList();
+            await LoadManufacturersAsync(manufacturers);
+
+            // machines
+            await LoadPinballMachinesAsync(machines);
+
+            // keywords
+            await LoadKeywordsAsync(machines);
+
+            // keyword mappings
+            await MapPinballKeywordsAsync(machines);
+
+            // mark snapshot as published
+            latestSnapshot.Published = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            // get results
+            var machineTotal = await _dbContext.PinballMachines.CountAsync();
+            var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
+            var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
+            var keywordsTotal = await _dbContext.PinballKeywords.CountAsync();
+
+            var result = new CatalogSnapshotPublishResult
             {
-                var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
-                var machineGroups = await JsonSerializer.DeserializeAsync<IEnumerable<MachineGroup>>(mgs);
+                MachineTotal = machineTotal,
+                MachineGroupTotal = machineGroupsTotal,
+                ManufacturerTotal = manufacturersTotal,
+                KeywordTotal = keywordsTotal,
+                SnapshotId = latestSnapshot.Id,
+                Imported = latestSnapshot.Imported
+            };
 
-                await LoadMachineGroupsAsync(machineGroups);
-
-                // manufacturers
-                var manufacturers = machines
-                    .Where(m => m.Manufacturer != null)
-                    .Select(m => m.Manufacturer).Distinct(new ManufacturerComparer()).ToList();
-                await LoadManufacturersAsync(manufacturers);
-
-                // machines
-                await LoadPinballMachinesAsync(machines);
-
-                // keywords
-                await LoadKeywordsAsync(machines);
-
-                // keyword mappings
-                await MapPinballKeywordsAsync(machines);
-
-                // mark snapshot as published
-                latestSnapshot.Published = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-
-                // get results
-                var machineTotal = await _dbContext.PinballMachines.CountAsync();
-                var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
-                var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
-                var keywordsTotal = await _dbContext.PinballKeywords.CountAsync();
-
-                var result = new CatalogSnapshotPublishResult
-                {
-                    MachineTotal = machineTotal,
-                    MachineGroupTotal = machineGroupsTotal,
-                    ManufacturerTotal = manufacturersTotal,
-                    KeywordTotal = keywordsTotal,
-                    SnapshotId = latestSnapshot.Id,
-                    Imported = latestSnapshot.Imported
-                };
-
-                return result;
-            }
+            return result;
         }
 
         private async Task LoadMachineGroupsAsync(IEnumerable<MachineGroup> machineGroups)
@@ -186,18 +187,22 @@ namespace Pinball.Api.Services.Interfaces.Impl
         {
             // get existing manufacturers
             var savedManufacturers = await _dbContext.PinballManufacturers.ToDictionaryAsync(m => m.Id);
-            var newManufacturers = manufacturers.Select(m => new PinballMachineManufacturer
+            var newManufacturers = manufacturers.Select(m =>
             {
-                Id = m.ManufacturerId,
-                Name = m.Name,
-                FullName = m.FullName
+                Debug.Assert(m != null, nameof(m) + " != null");
+                return new PinballMachineManufacturer
+                {
+                    Id = m.ManufacturerId,
+                    Name = m.Name,
+                    FullName = m.FullName
+                };
             });
 
             foreach(var newManufacturer in newManufacturers)
             {
-                if (savedManufacturers.ContainsKey(newManufacturer.Id))
+                if (savedManufacturers.TryGetValue(newManufacturer.Id, out var savedManufacturer))
                 {
-                    _dbContext.Entry(savedManufacturers[newManufacturer.Id]).CurrentValues.SetValues(newManufacturer);
+                    _dbContext.Entry(savedManufacturer).CurrentValues.SetValues(newManufacturer);
                 } 
                 else
                 {
@@ -228,7 +233,7 @@ namespace Pinball.Api.Services.Interfaces.Impl
 
         private async Task LoadKeywordsAsync(IEnumerable<Machine> machines)
         {
-            var newKeywords = machines.SelectMany(m => m.Keywords).Distinct().ToList();
+            var newKeywords = machines.SelectMany(m => m.Keywords ?? new List<string>()).Distinct().ToList();
 
             var savedKeywords = await _dbContext.PinballKeywords.ToDictionaryAsync(k => k.Name, k => k.Id);
 
@@ -251,13 +256,13 @@ namespace Pinball.Api.Services.Interfaces.Impl
 
             foreach(var machine in machines)
             {
-                var mappings = machine.Keywords.Select(kw => new PinballMachineKeywordMapping
+                var mappings = machine.Keywords?.Select(kw => new PinballMachineKeywordMapping
                 {
                     KeywordId = savedKeywords[kw],
                     MachineId = machine.OpdbId.ToString()
                 });
-
-                keywordMappings.AddRange(mappings);
+                if (mappings is not null)
+                    keywordMappings.AddRange(mappings);
             }
 
             await _dbContext.BulkInsertOrUpdateAsync(keywordMappings);
@@ -308,16 +313,19 @@ namespace Pinball.Api.Services.Interfaces.Impl
             jsonOptions.Converters.Add(new ChangelogActionConverter());
             var newChangelogs = JsonSerializer.Deserialize<IEnumerable<Changelog>>(response.JsonResponse, jsonOptions);
 
+            if (newChangelogs is null) return 0;
+
             // get all existing changelogs 
-            var savedChangelogs = await _dbContext.OpdbChangelogs.ToListAsync();
+            var savedChangelogs = await _dbContext.OpdbChangelogs.ToDictionaryAsync(cl => cl.Id);
 
             foreach (var newChangelog in newChangelogs)
             {
                 // get existing changelog
-                var savedChangelog = await _dbContext.OpdbChangelogs.FindAsync(newChangelog.ChangelogId);
+
+                savedChangelogs.TryGetValue(newChangelog.ChangelogId, out var savedChangelog);
                 if(savedChangelog != null)
                 {
-                    savedChangelog.OpdbId = newChangelog.OpdbIdDeleted.ToString();
+                    savedChangelog.OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty;
                     savedChangelog.Action = (OpdbChangelogAction)(int)newChangelog.Action;
                     savedChangelog.NewOpdbId = newChangelog.OpdbIdReplacement?.ToString();
                     savedChangelog.Date = newChangelog.CreatedAt;
@@ -327,7 +335,7 @@ namespace Pinball.Api.Services.Interfaces.Impl
                     var createdChangelog = new OpdbChangelog
                     {
                         Id = newChangelog.ChangelogId,
-                        OpdbId = newChangelog.OpdbIdDeleted.ToString(),
+                        OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty,
                         Action = (OpdbChangelogAction)(int)newChangelog.Action,
                         NewOpdbId = newChangelog.OpdbIdReplacement?.ToString(),
                         Date = newChangelog.CreatedAt
@@ -356,14 +364,13 @@ namespace Pinball.Api.Services.Interfaces.Impl
                 throw new InvalidOperationException("No snapshots exist to get machine types for");
             }
 
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse)))
-            {
-                var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
+            var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
 
-                var machineTypeGroups = machines.GroupBy(m => m.MachineType).ToDictionary(g => g.Key.ToString(), g => g.Count());
+            if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
+            var machineTypeGroups = machines.GroupBy(m => m.MachineType).ToDictionary(g => g.Key?.ToString() ?? "Unknown", g => g.Count());
 
-                return machineTypeGroups;
-            }
+            return machineTypeGroups;
         }
 
         public async Task<Dictionary<string, int>> GetAllDisplayTypesAsync()
@@ -375,14 +382,13 @@ namespace Pinball.Api.Services.Interfaces.Impl
                 throw new InvalidOperationException("No snapshots exist to get display types for");
             }
 
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse)))
-            {
-                var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
+            var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
 
-                var displayTypeGroups = machines.GroupBy(m => m.Display ?? "null").ToDictionary(g => g.Key.ToString(), g => g.Count());
+            if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
+            var displayTypeGroups = machines.GroupBy(m => m.Display ?? "null").ToDictionary(g => g.Key.ToString(), g => g.Count());
 
-                return displayTypeGroups;
-            }
+            return displayTypeGroups;
         }
     }
 }

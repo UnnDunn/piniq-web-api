@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -26,9 +28,19 @@ namespace Pinball.Api
 		{
 			services.AddHttpClient();
 
-			services.AddDbContext<PinballDbContext>(options =>
-				options.UseSqlServer(Configuration.GetConnectionString("PinballDbContext")));
 
+
+			services.AddDbContext<PinballDbContext>(options =>
+			{
+#if DEBUG
+				var folder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+				var path = Path.Combine(folder, "PinIQ", "piniq.db");
+				options.UseSqlite($"Data Source={path}");
+#else
+				options.UseSqlServer(Configuration.GetConnectionString("PinballDbContext"));
+#endif
+			});
+			
 			services.Configure<OpdbClientOptions>(Configuration.GetSection("Opdb"));
 			services.AddScoped<IOpdbClient, OpdbClient.Interfaces.Impl.OpdbClient>();
 			services.AddScoped<IPinballMachineCatalogService, PinballMachineCatalogService>();

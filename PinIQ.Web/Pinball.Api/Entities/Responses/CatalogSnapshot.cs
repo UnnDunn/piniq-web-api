@@ -10,8 +10,8 @@ namespace Pinball.Api.Entities.Responses
         public int Id { get; set; }
         public DateTime Imported { get; set; }
         public DateTime? Published { get; set; }
-        public string MachineJson { get; set; }
-        public string MachineGroupJson { get; set; }
+        public string MachineJson { get; set; } = string.Empty;
+        public string MachineGroupJson { get; set; } = string.Empty;
 
         public static implicit operator CatalogSnapshot(OpdbCatalogSnapshot o)
         {

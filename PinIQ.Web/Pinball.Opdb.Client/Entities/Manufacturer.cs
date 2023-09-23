@@ -7,8 +7,8 @@ namespace Pinball.OpdbClient.Entities
     {
         [JsonPropertyName("manufacturer_id")]
         public int ManufacturerId { get; set; }
-        [JsonPropertyName("name")]
-        public string Name { get; set; }
+        [JsonPropertyName("name")] 
+        public string Name { get; set; } = null!;
         [JsonPropertyName("full_name")]
         public string? FullName { get; set; }
     }

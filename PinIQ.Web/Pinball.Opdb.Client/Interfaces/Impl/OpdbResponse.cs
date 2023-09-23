@@ -2,7 +2,7 @@
 {
     internal class OpdbResponse : IOpdbResponse
     {
-        public string JsonResponse { get; set; }
+        public string JsonResponse { get; set; } = null!;
         public OpdbResponseStatus Status { get; set; }
     }
 

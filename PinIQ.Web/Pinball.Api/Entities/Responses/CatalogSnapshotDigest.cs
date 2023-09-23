@@ -33,6 +33,8 @@ namespace Pinball.Api.Entities.Responses
                 var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms, jsonOptions);
                 var machineGroups = await JsonSerializer.DeserializeAsync<IEnumerable<MachineGroup>>(mgs, jsonOptions);
 
+                if (machines is null || machineGroups is null)
+                    throw new Exception("Parsing machines or machine groups from Opdb failed");
                 var result = new CatalogSnapshotDigest
                 {
                     Id = o.Id,
@@ -42,10 +44,10 @@ namespace Pinball.Api.Entities.Responses
                     MachineGroupCount = machineGroups.Count(),
                     ManufacturerCount = machines
                         .Where(m => m.Manufacturer != null)
-                        .Select(m => m.Manufacturer.ManufacturerId)
+                        .Select(m => m.Manufacturer?.ManufacturerId)
                         .Distinct()
                         .Count(),
-                    KeywordCount = machines.SelectMany(m => m.Keywords).Distinct().Count()
+                    KeywordCount = machines.SelectMany(m => m.Keywords ?? new List<string>()).Distinct().Count()
                 };
 
                 return result;
