@@ -1,6 +1,5 @@
 ﻿using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Pinball.Api.Data;
 using Pinball.Api.Data.Entities;
 using Pinball.Api.Services.Entities;
@@ -15,7 +14,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Pinball.Api.Services.Interfaces.Impl

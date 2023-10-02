@@ -32,13 +32,7 @@ namespace Pinball.Api
 
 			services.AddDbContext<PinballDbContext>(options =>
 			{
-#if DEBUG
-				var folder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-				var path = Path.Combine(folder, "PinIQ", "piniq.db");
-				options.UseSqlite($"Data Source={path}");
-#else
 				options.UseSqlServer(Configuration.GetConnectionString("PinballDbContext"));
-#endif
 			});
 			
 			services.Configure<OpdbClientOptions>(Configuration.GetSection("Opdb"));

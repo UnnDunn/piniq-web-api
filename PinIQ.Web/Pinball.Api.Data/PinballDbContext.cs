@@ -21,14 +21,6 @@ namespace Pinball.Api.Data
         {
         }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            base.OnConfiguring(optionsBuilder);
-#if DEBUG
-            _caseInsensitiveCollationName = "BINARY";
-#endif
-        }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
