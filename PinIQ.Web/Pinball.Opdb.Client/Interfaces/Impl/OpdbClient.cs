@@ -100,6 +100,8 @@ namespace Pinball.OpdbClient.Interfaces.Impl
                     qsb.Add(kvp.Key, kvp.Value);
                 }
             }
+
+            if (string.IsNullOrEmpty(_options.ApiKey)) throw new Exception("Api Key not set");
             qsb.Add("api_token", _options.ApiKey);
             ub.Query = qsb.ToString();
 
