@@ -41,7 +41,6 @@ COPY Pinball.Api/ Pinball.Api/
 
 FROM build AS publish
 WORKDIR /source/Pinball.Api
-RUN dotnet user-secrets set "Opdb:ApiKey" "${OPDB_APIKEY}"
 RUN  --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet publish --no-restore -o /app
 

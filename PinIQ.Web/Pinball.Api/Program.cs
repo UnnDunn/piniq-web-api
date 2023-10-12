@@ -9,7 +9,7 @@ using Pinball.Api.Data;
 
 namespace Pinball.Api
 {
-    public class Program
+    public partial class Program
     {
         public static void Main(string[] args)
         {
@@ -47,6 +47,8 @@ namespace Pinball.Api
         {
             using var scope = host.Services.CreateScope();
             var services = scope.ServiceProvider;
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            LogProcessCreatingDatabase(logger);
 
             try
             {
@@ -55,9 +57,14 @@ namespace Pinball.Api
             }
             catch (Exception ex)
             {
-                var logger = services.GetRequiredService<ILogger<Program>>();
-                logger.LogError(ex, "An error occurred creating the database");
+                LogErrorUpdatingDatabase(logger, ex);
             }
         }
+
+        [LoggerMessage(EventId = 1101, Level = LogLevel.Information, Message = "Creating database")]
+        private static partial void LogProcessCreatingDatabase(ILogger<Program> logger);
+
+        [LoggerMessage(EventId = 1102, Level = LogLevel.Error, Message = "A problem occurred updating the database")]
+        private static partial void LogErrorUpdatingDatabase(ILogger<Program> logger, Exception ex);
     }
 }

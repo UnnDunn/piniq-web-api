@@ -27,9 +27,7 @@ namespace Pinball.Api
 		public void ConfigureServices(IServiceCollection services)
 		{
 			services.AddHttpClient();
-
-
-
+			
 			services.AddDbContext<PinballDbContext>(options =>
 			{
 				options.UseSqlServer(Configuration.GetConnectionString("PinballDbContext"));

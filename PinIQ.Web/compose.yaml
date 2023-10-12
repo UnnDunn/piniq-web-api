@@ -19,6 +19,7 @@ services:
       - 8080:80
     environment:
       - ASPNETCORE_Opdb__ApiKey=${OPDB_APIKEY}
+      - ASPNETCORE_ENVIRONMENT=Development
     image: piniq-server
     container_name: piniq-server
     depends_on: [ database ]
