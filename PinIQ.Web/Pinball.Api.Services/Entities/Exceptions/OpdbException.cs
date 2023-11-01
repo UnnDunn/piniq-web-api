@@ -1,24 +1,23 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Pinball.Api.Services.Entities.Exceptions
+namespace Pinball.Api.Services.Entities.Exceptions;
+
+public class OpdbException : Exception
 {
-    public class OpdbException : Exception
+    public OpdbException()
     {
-        public OpdbException()
-        {
-        }
+    }
 
-        public OpdbException(string? message) : base(message)
-        {
-        }
+    public OpdbException(string? message) : base(message)
+    {
+    }
 
-        public OpdbException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
+    public OpdbException(string? message, Exception? innerException) : base(message, innerException)
+    {
+    }
 
-        protected OpdbException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+    protected OpdbException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
     }
 }

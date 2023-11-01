@@ -1,9 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Pinball.Api.Services.Interfaces;
-using Pinball.OpdbClient.Entities;
 
 namespace Pinball.Api.Controllers.Admin
 {
@@ -11,12 +9,10 @@ namespace Pinball.Api.Controllers.Admin
     [ApiController]
     public class PinballMachinesController : ControllerBase
     {
-        private IPinballMachineCatalogService _catalogService;
-        private ILogger<PinballMachinesController> _logger;
+        private readonly IPinballMachineCatalogService _catalogService;
 
-        public PinballMachinesController(IPinballMachineCatalogService catalogService, ILogger<PinballMachinesController> logger)
+        public PinballMachinesController(IPinballMachineCatalogService catalogService)
         {
-            _logger = logger;
             _catalogService = catalogService;
         }
 

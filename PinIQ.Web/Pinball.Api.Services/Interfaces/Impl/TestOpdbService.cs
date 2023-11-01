@@ -2,21 +2,20 @@
 using Pinball.OpdbClient.Interfaces;
 using System.Threading.Tasks;
 
-namespace Pinball.Api.Services.Interfaces.Impl
+namespace Pinball.Api.Services.Interfaces.Impl;
+
+public class TestOpdbService : ITestOpdbService
 {
-    public class TestOpdbService : ITestOpdbService
+    private readonly IOpdbClient _opdbClient;
+
+    public TestOpdbService(IOpdbClient opdbClient)
     {
-        private IOpdbClient _opdbClient;
+        _opdbClient = opdbClient;
+    }
 
-        public TestOpdbService(IOpdbClient opdbClient)
-        {
-            _opdbClient = opdbClient;
-        }
-
-        public async Task<string> GetAsync(OpdbId id)
-        {
-            var response = await _opdbClient.GetAsync(id);
-            return response.JsonResponse;
-        }
+    public async Task<string> GetAsync(OpdbId id)
+    {
+        var response = await _opdbClient.GetAsync(id);
+        return response.JsonResponse;
     }
 }

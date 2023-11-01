@@ -1,21 +1,28 @@
 using System;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
-using Microsoft.ApplicationInsights;
+using Azure.Identity;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using Pinball.Api.Data;
 using Pinball.Api.Entities.Configuration;
+using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Api.Services.Interfaces.Impl;
 using Pinball.OpdbClient.Entities;
 using Pinball.OpdbClient.Interfaces;
 using Serilog;
 using Serilog.Sinks.ApplicationInsights.TelemetryConverters;
+using AppleAuthenticationOptions = Pinball.Api.Entities.Configuration.AppleAuthenticationOptions;
 
 namespace Pinball.Api;
 
@@ -27,6 +34,15 @@ public partial class Program
 
         var loggerConfiguration = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration);
+        
+        // Azure KeyVault configuration
+        var azKeyVaultConnectionString = builder.Configuration.GetConnectionString("AzKeyVault");
+
+        if (!string.IsNullOrEmpty(azKeyVaultConnectionString))
+        {
+            // found a keyvault connection string, so configure azure key-vault
+            builder.Configuration.AddAzureKeyVault(new Uri(azKeyVaultConnectionString), new DefaultAzureCredential());
+        }
         
         // ApplicationInsights options
         var appInsightsOptions = builder.Configuration.GetSection("Logging:ApplicationInsights")
@@ -52,14 +68,71 @@ public partial class Program
 			
 			
         builder.Services.Configure<OpdbClientOptions>(builder.Configuration.GetSection("Opdb"));
+        builder.Services.Configure<DeveloperOptions>(builder.Configuration.GetSection("DeveloperOptions"));
         builder.Services.AddScoped<IOpdbClient, OpdbClient.Interfaces.Impl.OpdbClient>();
         builder.Services.AddScoped<IPinballMachineCatalogService, PinballMachineCatalogService>();
         builder.Services.AddScoped<ITestOpdbService, TestOpdbService>();
+        builder.Services.AddScoped<LoginService>();
 
+        // Authentication
+        builder.Services.Configure<MyJwtBearerOptions>(
+            builder.Configuration.GetSection("Authentication:Schemes:Bearer"));
+        var myJwtBearerOptions =
+            builder.Configuration.GetRequiredSection("Authentication:Schemes:Bearer").Get<MyJwtBearerOptions>();
+        var authBuilder = builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(o =>
+            {
+                if (myJwtBearerOptions is null)
+                {
+                    throw new Exception("Cannot read Jwt Bearer configuration");
+                }
+
+                var validIssuerSigningKey =
+                    myJwtBearerOptions.SigningKeys.First(s => s.Issuer == myJwtBearerOptions.ValidIssuer);
+                o.TokenValidationParameters = new TokenValidationParameters()
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = myJwtBearerOptions.ValidIssuer,
+                    ValidAudiences = myJwtBearerOptions.ValidAudiences,
+                    IssuerSigningKey =
+                        new SymmetricSecurityKey(Encoding.UTF8.GetBytes(validIssuerSigningKey.Value))
+                };
+            });
+        
+        var appleAuthOptions = builder.Configuration.GetSection("Authentication:MyOptions:Apple")
+            .Get<AppleAuthenticationOptions>();
+        if (appleAuthOptions is not null)
+        {
+            if (appleAuthOptions.Type == AppleCertificateType.AzureKeyVault)
+            {
+            }
+            else
+            {
+                authBuilder.AddApple(options =>
+                {
+                    options.ClientId = appleAuthOptions.ClientId;
+                    options.TeamId = appleAuthOptions.TeamId;
+                    options.KeyId = appleAuthOptions.KeyId;
+
+                    options.UsePrivateKey(keyId =>
+                        builder.Environment.ContentRootFileProvider.GetFileInfo($"AuthKey_{keyId}.p8"));
+                });
+            }
+        }
         builder.Services.AddControllers();
 
         builder.Services.AddMvcCore().AddApiExplorer();
 
+        builder.Services.AddAuthorization(o =>
+        {
+            o.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
+        
         builder.Services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "PinIQ API", Version = "v1" });

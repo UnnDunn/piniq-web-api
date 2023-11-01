@@ -1,10 +1,9 @@
 ﻿using Pinball.OpdbClient.Entities;
 using System.Threading.Tasks;
 
-namespace Pinball.Api.Services.Interfaces
+namespace Pinball.Api.Services.Interfaces;
+
+public interface ITestOpdbService
 {
-    public interface ITestOpdbService
-    {
-        Task<string> GetAsync(OpdbId id);
-    }
+    Task<string> GetAsync(OpdbId id);
 }

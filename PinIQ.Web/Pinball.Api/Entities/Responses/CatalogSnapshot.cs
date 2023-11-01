@@ -1,7 +1,5 @@
-﻿using Newtonsoft.Json;
-using Pinball.Api.Data.Entities;
+﻿using Pinball.Api.Data.Entities;
 using System;
-using System.Collections;
 
 namespace Pinball.Api.Entities.Responses
 {

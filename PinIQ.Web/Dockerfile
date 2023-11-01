@@ -15,7 +15,6 @@ WORKDIR /source
 
 RUN curl -L https://raw.githubusercontent.com/Microsoft/artifacts-credprovider/master/helpers/installcredprovider.sh  | sh
 ARG FEED_ACCESSTOKEN
-ARG OPDB_APIKEY
 
 # Restore as a distinct layer
 COPY Pinball.Api.Data/*.csproj Pinball.Api.Data/
@@ -23,16 +22,13 @@ COPY Pinball.Api.Services/*.csproj Pinball.Api.Services/
 COPY Pinball.Opdb.Client/*.csproj Pinball.Opdb.Client/
 COPY Pinball.Api/*.csproj Pinball.Api/
 COPY NuGet.config NuGet.config
-# COPY ["Pinball.Api/Pinball.Api.csproj", "Pinball.Api/"]
-# COPY ./NuGet.config .
+
 ENV VSS_NUGET_EXTERNAL_FEED_ENDPOINTS="{\"endpointCredentials\": [{\"endpoint\":\"https://pkgs.dev.azure.com/unndunn/_packaging/UnnDunn-Nuget/nuget/v3/index.json\", \"username\":\"unndunn@hotmail.com\", \"password\":\"${FEED_ACCESSTOKEN}\"}]}"
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet restore "Pinball.Api/Pinball.Api.csproj"
 
 # Build the application.
 # Leverage a cache mount to /root/.nuget/packages so that subsequent builds don't have to re-download packages.
-# If TARGETARCH is "amd64", replace it with "x64" - "x64" is .NET's canonical name for this and "amd64" doesn't
-#   work in .NET 6.0.
 COPY Pinball.Api.Data/ Pinball.Api.Data/
 COPY Pinball.Api.Services/ Pinball.Api.Services/
 COPY Pinball.Opdb.Client/ Pinball.Opdb.Client/
@@ -43,6 +39,7 @@ FROM build AS publish
 WORKDIR /source/Pinball.Api
 RUN  --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet publish --no-restore -o /app
+COPY *.p8 /app
 
 # If you need to enable globalization and time zones:
 # https://github.com/dotnet/dotnet-docker/blob/main/samples/enable-globalization.md
@@ -79,9 +76,7 @@ ARG UID=10001
 RUN adduser \
     --disabled-password \
     --gecos "" \
-    --home "/nonexistent" \
     --shell "/sbin/nologin" \
-    --no-create-home \
     --uid "${UID}" \
     appuser
 USER appuser

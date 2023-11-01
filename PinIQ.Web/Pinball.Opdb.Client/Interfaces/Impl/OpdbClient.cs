@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
 using Pinball.OpdbClient.Helpers;
 
 namespace Pinball.OpdbClient.Interfaces.Impl

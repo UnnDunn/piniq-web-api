@@ -262,3 +262,6 @@ __pycache__/
 
 # docker environment
 **/*.env
+
+# certificates
+**/*.p8
