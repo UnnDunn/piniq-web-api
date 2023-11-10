@@ -8,6 +8,7 @@ using Pinball.Api.Entities.Responses;
 using Pinball.Api.Services.Entities;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Api.Services.Interfaces;
+using Pinball.Entities.Api.Responses.PinballCatalog;
 
 namespace Pinball.Api.Controllers.Admin
 {
@@ -15,7 +16,7 @@ namespace Pinball.Api.Controllers.Admin
     [ApiController]
     public class PinballMachineCatalogSnapshotsController : ControllerBase
     {
-        private IPinballMachineCatalogService _catalogService;
+        private readonly IPinballMachineCatalogService _catalogService;
         private ILogger<PinballMachineCatalogSnapshotsController> _logger;
 
         public PinballMachineCatalogSnapshotsController(IPinballMachineCatalogService catalogService, ILogger<PinballMachineCatalogSnapshotsController> logger)
@@ -30,7 +31,7 @@ namespace Pinball.Api.Controllers.Admin
         {
             var snapshots = await _catalogService.GetAllCatalogSnapshotsAsync();
 
-            var digestTasks = await Task.WhenAll(snapshots.Select(s => CatalogSnapshotDigest.FromSnapshot(s)));
+            var digestTasks = await Task.WhenAll(snapshots.Select(s => s.ToCatalogSnapshotDigestAsync()));
             var result = digestTasks.ToList();
 
             return Ok(result);
@@ -43,7 +44,7 @@ namespace Pinball.Api.Controllers.Admin
             try
             {
                 var snapshot = await _catalogService.ImportNewCatalogSnapshotAsync();
-                var result = CatalogSnapshotDigest.FromSnapshot(snapshot);
+                var result = await snapshot.ToCatalogSnapshotDigestAsync();
                 return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
             } catch (OpdbException o)
             {

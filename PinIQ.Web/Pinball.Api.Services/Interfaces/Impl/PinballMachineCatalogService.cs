@@ -1,7 +1,6 @@
 ﻿using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Pinball.Api.Data;
-using Pinball.Api.Data.Entities;
 using Pinball.Api.Services.Entities;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.OpdbClient.Entities;
@@ -16,6 +15,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Pinball.Entities.Data.Opdb;
+using Pinball.Entities.Data.PinballMachines;
 
 namespace Pinball.Api.Services.Interfaces.Impl;
 

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Pinball.Api.Data.Entities;
+using Pinball.Entities.Data.Opdb;
+using Pinball.Entities.Data.PinballMachines;
 
 namespace Pinball.Api.Data
 {

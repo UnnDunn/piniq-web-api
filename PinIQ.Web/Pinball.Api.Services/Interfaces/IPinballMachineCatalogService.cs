@@ -1,7 +1,7 @@
-﻿using Pinball.Api.Data.Entities;
-using Pinball.Api.Services.Entities;
+﻿using Pinball.Api.Services.Entities;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Pinball.Entities.Data.Opdb;
 
 namespace Pinball.Api.Services.Interfaces;
 

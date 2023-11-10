@@ -1,5 +1,4 @@
-﻿using Pinball.Api.Data.Entities;
-using Pinball.OpdbClient.Entities;
+﻿using Pinball.OpdbClient.Entities;
 using Pinball.OpdbClient.Helpers;
 using System;
 using System.Collections.Generic;
@@ -8,20 +7,14 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Pinball.Entities.Api.Responses.PinballCatalog;
+using Pinball.Entities.Data.Opdb;
 
 namespace Pinball.Api.Entities.Responses
 {
-    public class CatalogSnapshotDigest
+    public static class CatalogSnapshotDigestExtensions
     {
-        public int Id { get; set; }
-        public DateTime Imported { get; set; }
-        public DateTime? Published { get; set; }
-        public int MachineCount { get; set; }
-        public int MachineGroupCount { get; set; }
-        public int ManufacturerCount { get; set; }
-        public int KeywordCount { get; set; }
-
-        public static async Task<CatalogSnapshotDigest> FromSnapshot(OpdbCatalogSnapshot o)
+        public static async Task<CatalogSnapshotDigest> ToCatalogSnapshotDigestAsync(this OpdbCatalogSnapshot o)
         {
             using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(o.MachineJsonResponse)))
             using (var mgs = new MemoryStream(Encoding.UTF8.GetBytes(o.MachineGroupJsonResponse)))
