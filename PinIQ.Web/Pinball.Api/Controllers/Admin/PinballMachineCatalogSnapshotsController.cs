@@ -38,7 +38,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpPost]
-        [Route("[action]")] //POST /api/admin/PinballMachineCatalogSnapshots/Import
+        [Route("Import")] //POST /api/admin/PinballMachineCatalogSnapshots/Import
         public async Task<ActionResult<CatalogSnapshotDigest>> Import()
         {
             try
@@ -67,7 +67,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpPost]
-        [Route("[action]")] //POST /api/admin/PinballMachineCatalogSnapshots/PublishLatest
+        [Route("PublishLatest")] //POST /api/admin/PinballMachineCatalogSnapshots/PublishLatest
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<CatalogSnapshotPublishResult>> PublishLatest()
         {

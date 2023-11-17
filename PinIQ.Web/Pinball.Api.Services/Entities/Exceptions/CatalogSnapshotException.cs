@@ -19,9 +19,6 @@ public class CatalogSnapshotException : Exception
     {
     }
 
-    protected CatalogSnapshotException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 
     public CatalogSnapshotException(int id)
     {
@@ -37,8 +34,5 @@ public class CatalogSnapshotException : Exception
     {
         SnapshotId = id;
     }
-    protected CatalogSnapshotException(int id, SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-        SnapshotId = id;
-    }
+
 }

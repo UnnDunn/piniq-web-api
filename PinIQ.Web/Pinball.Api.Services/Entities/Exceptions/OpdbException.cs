@@ -16,8 +16,4 @@ public class OpdbException : Exception
     public OpdbException(string? message, Exception? innerException) : base(message, innerException)
     {
     }
-
-    protected OpdbException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }

@@ -1,0 +1,44 @@
+
+pool: default
+
+trigger:
+- master
+  
+variables:
+  buildConfiguration: 'Release'
+  
+steps:
+- task: UseDotNet@2
+  displayName: 'Install .Net Core SDK'
+  inputs:
+    version: 8.x
+    performMultiLevelLookup: true
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restore NuGet packages'
+  inputs:
+    command: 'restore'
+    projects: '**/*.csproj'
+    feedsToUse: 'select'
+    vstsFeed: 'UnnDunn-Nuget'
+    
+- task: DotNetCoreCLI@2
+  displayName: 'Build'
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+    
+- task: DotNetCoreClI@2
+  displayName: 'Publish web project'
+  inputs: 
+    command: 'publish'
+    publishWebProjects: True
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: True
+    
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish artifact'
+  inputs:
+    targetPath: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'PinIQWeb'

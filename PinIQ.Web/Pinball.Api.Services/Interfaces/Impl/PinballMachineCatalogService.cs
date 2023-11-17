@@ -307,16 +307,16 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await _dbContext.SaveChangesAsync();
 
         // delete keywords
-        await _dbContext.PinballKeywords.BatchDeleteAsync();
+        await _dbContext.PinballKeywords.ExecuteDeleteAsync();
 
         // delete features
-        await _dbContext.PinballFeatures.BatchDeleteAsync();
+        await _dbContext.PinballFeatures.ExecuteDeleteAsync();
 
         // delete pinball machines
-        await _dbContext.PinballMachines.BatchDeleteAsync();
+        await _dbContext.PinballMachines.ExecuteDeleteAsync();
 
         // delete manufacturers
-        await _dbContext.PinballManufacturers.BatchDeleteAsync();
+        await _dbContext.PinballManufacturers.ExecuteDeleteAsync();
 
         await _dbContext.SaveChangesAsync();
     }

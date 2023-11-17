@@ -5,7 +5,7 @@ using Pinball.Api.Services.Interfaces;
 
 namespace Pinball.Api.Controllers.Admin
 {
-    [Route("api/admin/[controller]")]
+    [Route("api/admin/[controller]/[action]")]
     [ApiController]
     public class PinballMachinesController : ControllerBase
     {
@@ -17,7 +17,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpGet]
-        [Route("[action]")]
+        // [Route("types")]
         public async Task<Dictionary<string, int>> Types()
         {
             var result = await _catalogService.GetAllMachineTypesAsync();
@@ -26,7 +26,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpGet]
-        [Route("[action]")]
+        // [Route("displaytypes")]
         public async Task<Dictionary<string, int>> DisplayTypes()
         {
             var result = await _catalogService.GetAllDisplayTypesAsync();
@@ -35,7 +35,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpPost]
-        [Route("[action]")]
+        // [Route("")]
         public async Task<ActionResult> ResetMachines()
         {
             await _catalogService.ResetCatalogAsync();

@@ -1,0 +1,5 @@
+﻿@Pinball.Api_HostAddress = http://localhost:8080
+
+GET {{Pinball.Api_HostAddress}}/api/login/TestToken?testKey=thisIsATest
+
+###
