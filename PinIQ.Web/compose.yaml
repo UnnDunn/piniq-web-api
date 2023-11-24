@@ -15,11 +15,16 @@ services:
       args:
         - FEED_ACCESSTOKEN=${UNNDUNN_FEED_ACCESSTOKEN}
     ports:
-      - 8080:8080
+      - 8000:80
+      - 8001:443
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:443;http://+:80
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/home/appuser/.aspnet/https/Pinball.Api.pfx
     volumes:
       - ${DOTNET_USERSECRETS_PATH}:/home/appuser/.microsoft/usersecrets:ro
+      - ${CERTIFICATE_PATH}:/home/appuser/.aspnet/https:ro
     image: piniq-server
     container_name: piniq-server
     depends_on: [ database ]
