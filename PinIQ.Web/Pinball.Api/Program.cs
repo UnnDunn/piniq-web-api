@@ -116,9 +116,26 @@ public partial class Program
                     options.ClientId = appleAuthOptions.ClientId;
                     options.TeamId = appleAuthOptions.TeamId;
                     options.KeyId = appleAuthOptions.KeyId;
+                    if (!string.IsNullOrEmpty(appleAuthOptions.PrivateKey))
+                    {
+                        options.PrivateKey = (_, _) => Task.FromResult(appleAuthOptions.PrivateKey.AsMemory());
+                    }
+                    else
+                    {
 
-                    options.UsePrivateKey(keyId =>
-                        builder.Environment.ContentRootFileProvider.GetFileInfo($"AuthKey_{keyId}.p8"));
+                        var pkFile =
+                            builder.Environment.ContentRootFileProvider.GetFileInfo(
+                                $"AuthKey_{appleAuthOptions.KeyId}.p8");
+                        if (pkFile.Exists)
+                        {
+                            options.UsePrivateKey(keyId =>
+                                builder.Environment.ContentRootFileProvider.GetFileInfo($"AuthKey_{keyId}.p8"));
+                        }
+                        else
+                        {
+                            throw new Exception("Could not find private key for Apple Sign-in provider");
+                        }
+                    }
                 });
             }
         }
