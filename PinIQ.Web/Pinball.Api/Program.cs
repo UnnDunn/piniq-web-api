@@ -106,39 +106,35 @@ public partial class Program
             .Get<AppleAuthenticationOptions>();
         if (appleAuthOptions is not null)
         {
-            if (appleAuthOptions.Type == AppleCertificateType.AzureKeyVault)
+
+            authBuilder.AddApple(options =>
             {
-            }
-            else
-            {
-                authBuilder.AddApple(options =>
+                options.ClientId = appleAuthOptions.ClientId;
+                options.TeamId = appleAuthOptions.TeamId;
+                options.KeyId = appleAuthOptions.KeyId;
+                if (!string.IsNullOrEmpty(appleAuthOptions.PrivateKey))
                 {
-                    options.ClientId = appleAuthOptions.ClientId;
-                    options.TeamId = appleAuthOptions.TeamId;
-                    options.KeyId = appleAuthOptions.KeyId;
-                    if (!string.IsNullOrEmpty(appleAuthOptions.PrivateKey))
+                    options.PrivateKey = (_, _) => Task.FromResult(appleAuthOptions.PrivateKey.AsMemory());
+                }
+                else
+                {
+
+                    var pkFile =
+                        builder.Environment.ContentRootFileProvider.GetFileInfo(
+                            $"AuthKey_{appleAuthOptions.KeyId}.p8");
+                    if (pkFile.Exists)
                     {
-                        options.PrivateKey = (_, _) => Task.FromResult(appleAuthOptions.PrivateKey.AsMemory());
+                        options.UsePrivateKey(_ => pkFile);
                     }
                     else
                     {
-
-                        var pkFile =
-                            builder.Environment.ContentRootFileProvider.GetFileInfo(
-                                $"AuthKey_{appleAuthOptions.KeyId}.p8");
-                        if (pkFile.Exists)
-                        {
-                            options.UsePrivateKey(keyId =>
-                                builder.Environment.ContentRootFileProvider.GetFileInfo($"AuthKey_{keyId}.p8"));
-                        }
-                        else
-                        {
-                            throw new Exception("Could not find private key for Apple Sign-in provider");
-                        }
+                        throw new Exception("Could not find private key for Apple Sign-in provider");
                     }
-                });
-            }
+                }
+            });
+
         }
+
         builder.Services.AddControllers();
 
         builder.Services.AddMvcCore().AddApiExplorer();
