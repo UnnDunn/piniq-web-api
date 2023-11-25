@@ -114,6 +114,7 @@ public partial class Program
                 options.KeyId = appleAuthOptions.KeyId;
                 if (!string.IsNullOrEmpty(appleAuthOptions.PrivateKey))
                 {
+                    options.GenerateClientSecret = true;
                     options.PrivateKey = (_, _) => Task.FromResult(appleAuthOptions.PrivateKey.AsMemory());
                 }
                 else
@@ -128,6 +129,7 @@ public partial class Program
                     }
                     else
                     {
+                        Log.Logger.Error("Could not find private key for Apple Sign-in Provider");
                         throw new Exception("Could not find private key for Apple Sign-in provider");
                     }
                 }
