@@ -7,8 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Pinball.Api.Controllers.Admin;
 
-[Route("api/admin/[controller]")]
-[ApiController, AllowAnonymous]
+[Route("api/admin/[controller]"), ApiController, AllowAnonymous]
 public class OpdbTestController : ControllerBase
 {
     private readonly ITestOpdbService _opdbService;

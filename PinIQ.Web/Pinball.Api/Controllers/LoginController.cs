@@ -14,8 +14,7 @@ using Pinball.Api.Services.Interfaces.Impl;
 
 namespace Pinball.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]/[action]")]
+[ApiController, Route("api/[controller]/[action]"), AllowAnonymous]
 public class LoginController : ControllerBase
 {
     private readonly LoginService _loginService;
@@ -29,14 +28,7 @@ public class LoginController : ControllerBase
         _developerOptions = developerOptions.Value;
     }
 
-    [Authorize(AuthenticationSchemes = AppleAuthenticationDefaults.AuthenticationScheme)]
     [HttpGet]
-    public Task<IActionResult> Apple()
-    {
-        throw new NotImplementedException();
-    }
-
-    [HttpGet, AllowAnonymous]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
         var claims = await _loginService.ReadRefreshToken(token);
@@ -75,7 +67,7 @@ public class LoginController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet, AllowAnonymous]
+    [HttpGet, ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult TestToken([FromQuery] string testKey)
     {
         if (_developerOptions.LoginTestKey is null || _developerOptions.LoginTestKey != testKey)
@@ -92,5 +84,11 @@ public class LoginController : ControllerBase
         var result = new LoginTokenResponse(accessToken, refreshToken);
 
         return Ok(result);
+    }
+
+    [HttpGet("/throwException"), ApiExplorerSettings(IgnoreApi = true)]
+    public IActionResult ThrowException()
+    {
+        throw new Exception($"Exception thrown at {DateTime.UtcNow:g}");
     }
 }

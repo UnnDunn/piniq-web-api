@@ -4,8 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Pinball.Api.Controllers.Test;
 
-[Route("api/test/[controller]")]
-[ApiController]
+[Route("api/test/[controller]"), ApiController, ApiExplorerSettings(IgnoreApi = true)]
 public partial class OauthTestController : ControllerBase
 {
     private readonly ILogger<OauthTestController> _logger;
