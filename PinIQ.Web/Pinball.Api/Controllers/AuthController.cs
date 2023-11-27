@@ -1,7 +1,11 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Apple;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -15,20 +19,75 @@ using Pinball.Api.Services.Interfaces.Impl;
 namespace Pinball.Api.Controllers;
 
 [ApiController, Route("api/[controller]/[action]"), AllowAnonymous]
-public class LoginController : ControllerBase
+public class AuthController : ControllerBase
 {
     private readonly LoginService _loginService;
     private readonly DeveloperOptions _developerOptions;
     private readonly MyJwtBearerOptions _myJwtOptions;
 
-    public LoginController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions)
+    private const string CallbackScheme = "piniq";
+
+    public AuthController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions)
     {
         _loginService = loginService;
         _myJwtOptions = myJwtOptions.Value;
         _developerOptions = developerOptions.Value;
     }
 
-    [HttpGet]
+    [HttpGet("login/{scheme}")]
+    public async Task Login([FromRoute] string scheme)
+    {
+        var auth = await Request.HttpContext.AuthenticateAsync(scheme);
+
+        if (!auth.Succeeded
+            || auth?.Principal is null
+            || !auth.Principal.Identities.Any(id => id.IsAuthenticated)
+            || string.IsNullOrEmpty(auth.Properties.GetTokenValue("access_token")))
+        {
+            await Request.HttpContext.ChallengeAsync(scheme);
+        }
+        else
+        {
+            var provider = scheme switch
+            {
+                AppleAuthenticationDefaults.AuthenticationScheme => IdentityProvider.Apple,
+                _ => IdentityProvider.Self
+            };
+
+            var claims = auth.Principal.Identities.FirstOrDefault()?.Claims;
+            var email = claims?.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
+
+            if (email is not null)
+            {
+                var providerId = new ProviderIdentity(email, provider);
+                var accessToken = _loginService.BuildIdToken(providerId);
+                var refreshTokenResult = _loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
+
+                var qs = new Dictionary<string, string>()
+                {
+                    { "access_token", accessToken.AccessToken ?? string.Empty },
+                    { "refresh_token", refreshTokenResult.RefreshToken ?? string.Empty },
+                    { "expires_in", (accessToken.Expiry?.ToUnixTimeSeconds() ?? -1).ToString() },
+                    { "email", email }
+                };
+
+
+                var qString = string.Join("&", qs.Where(kvp => !string.IsNullOrEmpty(kvp.Value) && kvp.Value != "-1")
+                    .Select(kvp => $"{WebUtility.UrlEncode(kvp.Key)}={WebUtility.UrlEncode(kvp.Value)}"));
+
+                var returnUrlBuilder = new UriBuilder(CallbackScheme, string.Empty)
+                {
+                    Fragment = qString
+                };
+                
+                Request.HttpContext.Response.Redirect(returnUrlBuilder.ToString());
+            }
+
+            await Request.HttpContext.ForbidAsync(scheme);
+        }
+    }
+
+    [HttpGet("refresh")]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
         var claims = await _loginService.ReadRefreshToken(token);
@@ -43,7 +102,7 @@ public class LoginController : ControllerBase
             return BadRequest();
         
         var providerId = new ProviderIdentity(originalIdentifier.ToString()!, originalIssuerEnum);
-        var accessToken = _loginService.BuildIdToken(providerId);
+        var accessToken = _loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
 
         string? refreshToken = null;
         if (claims.TryGetValue(JwtRegisteredClaimNames.Exp, out var expirationDateUnix))
@@ -58,7 +117,7 @@ public class LoginController : ControllerBase
                         ? DateTime.Parse(old.ToString()!)
                         : DateTime.UtcNow;
 
-                refreshToken = _loginService.BuildRefreshToken(providerId, originalLoginDate);
+                refreshToken = _loginService.BuildRefreshToken(providerId, originalLoginDate).RefreshToken;
             }
         }
 
@@ -78,8 +137,8 @@ public class LoginController : ControllerBase
         var testId = new ProviderIdentity("TestID", IdentityProvider.Self);
 
         var originalLoginDate = DateTime.UtcNow;
-        var accessToken = _loginService.BuildIdToken(testId);
-        var refreshToken = _loginService.BuildRefreshToken(testId, originalLoginDate);
+        var accessToken = _loginService.BuildIdToken(testId).AccessToken ?? string.Empty;
+        var refreshToken = _loginService.BuildRefreshToken(testId, originalLoginDate).RefreshToken;
 
         var result = new LoginTokenResponse(accessToken, refreshToken);
 

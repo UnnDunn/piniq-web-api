@@ -1,4 +1,6 @@
-﻿namespace Pinball.Api.Services.Entities.Login;
+﻿using System;
+
+namespace Pinball.Api.Services.Entities.Login;
 
 public enum IdentityProvider
 {
@@ -10,3 +12,6 @@ public enum IdentityProvider
 }
 
 public record ProviderIdentity(string Identifier, IdentityProvider Provider);
+
+public record TokenGenerationResult(ProviderIdentity Identity, string? AccessToken = null, string? RefreshToken = null,
+    DateTimeOffset? Expiry = null);

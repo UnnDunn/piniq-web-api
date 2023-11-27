@@ -29,7 +29,7 @@ public partial class LoginService
         _myJwtOptions = jwtOptions.Value;
     }
 
-    public string BuildIdToken(ProviderIdentity identity, IEnumerable<Claim>? additionalClaims = null)
+    public TokenGenerationResult BuildIdToken(ProviderIdentity identity, IEnumerable<Claim>? additionalClaims = null)
     {
         LogActionGeneratingIdToken(identity);
         var claims = new List<Claim>
@@ -50,18 +50,20 @@ public partial class LoginService
                 .Select(aud => new Claim(JwtRegisteredClaimNames.Aud, aud)));
 
         var timeStamp = DateTime.UtcNow;
+        var expiry = timeStamp.AddMinutes(_myJwtOptions.AccessTokenExpirationMinutes);
 
         var idTokenSigningKey = _myJwtOptions.SigningKeys.Single(s => s.Issuer == _myJwtOptions.ValidIssuer);
         var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(idTokenSigningKey.Value));
         var signInCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(issuer: _myJwtOptions.ValidIssuer,
-            claims: claims, expires: DateTime.Now.AddMinutes(_myJwtOptions.AccessTokenExpirationMinutes), signingCredentials: signInCredentials, notBefore: timeStamp);
+            claims: claims, expires: expiry, signingCredentials: signInCredentials, notBefore: timeStamp);
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        return tokenString;
+        var result = new TokenGenerationResult(identity, tokenString, null, expiry);
+        return result;
     }
 
-    public string BuildRefreshToken(ProviderIdentity identity, DateTime originalLoginDate,
+    public TokenGenerationResult BuildRefreshToken(ProviderIdentity identity, DateTime originalLoginDate,
         IEnumerable<Claim>? additionalClaims = null)
     {
         LogActionGeneratingRefreshToken(identity, originalLoginDate);
@@ -84,6 +86,7 @@ public partial class LoginService
                 .Select(aud => new Claim(JwtRegisteredClaimNames.Aud, aud)));
 
         var timeStamp = DateTime.UtcNow;
+        var expiry = timeStamp.AddDays(_myJwtOptions.RefreshTokenExpirationDays);
         var tokenSigningKey = _myJwtOptions.SigningKeys.Single(s => s.Issuer == _myJwtOptions.ValidIssuer);
         var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenSigningKey.Value));
         var signInCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
@@ -91,7 +94,9 @@ public partial class LoginService
             claims: claims, expires: DateTime.Now.AddDays(_myJwtOptions.RefreshTokenExpirationDays), signingCredentials: signInCredentials, notBefore: timeStamp);
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        return tokenString;
+        var result = new TokenGenerationResult(identity, null, tokenString, expiry);
+
+        return result;
     }
 
     public async Task<IDictionary<string, object>> ReadRefreshToken(string refreshToken)
