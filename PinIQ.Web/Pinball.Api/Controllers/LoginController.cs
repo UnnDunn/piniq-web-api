@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Apple;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -18,8 +20,8 @@ using Pinball.Api.Services.Interfaces.Impl;
 
 namespace Pinball.Api.Controllers;
 
-[ApiController, Route("api/[controller]/[action]"), AllowAnonymous]
-public class AuthController : ControllerBase
+[ApiController, Route("api/[controller]"), AllowAnonymous]
+public class LoginController : ControllerBase
 {
     private readonly LoginService _loginService;
     private readonly DeveloperOptions _developerOptions;
@@ -27,28 +29,36 @@ public class AuthController : ControllerBase
 
     private const string CallbackScheme = "piniq";
 
-    public AuthController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions)
+    public LoginController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions)
     {
         _loginService = loginService;
         _myJwtOptions = myJwtOptions.Value;
         _developerOptions = developerOptions.Value;
     }
 
-    [HttpGet("login/{scheme}")]
+    [HttpGet("{scheme}"), AllowAnonymous]
     public async Task Login([FromRoute] string scheme)
     {
-        var auth = await Request.HttpContext.AuthenticateAsync(scheme);
+        var schemes = new List<string> { AppleAuthenticationDefaults.AuthenticationScheme ,
+            CookieAuthenticationDefaults.AuthenticationScheme, JwtBearerDefaults.AuthenticationScheme };
+
+        var canonicalScheme =
+            schemes.FirstOrDefault(s => scheme.Equals(s, StringComparison.InvariantCultureIgnoreCase));
+
+        if (canonicalScheme is null) throw new Exception("Invalid authentication scheme");
+
+        var auth = await Request.HttpContext.AuthenticateAsync(canonicalScheme);
 
         if (!auth.Succeeded
             || auth?.Principal is null
             || !auth.Principal.Identities.Any(id => id.IsAuthenticated)
             || string.IsNullOrEmpty(auth.Properties.GetTokenValue("access_token")))
         {
-            await Request.HttpContext.ChallengeAsync(scheme);
+            await Request.HttpContext.ChallengeAsync(canonicalScheme);
         }
         else
         {
-            var provider = scheme switch
+            var provider = canonicalScheme switch
             {
                 AppleAuthenticationDefaults.AuthenticationScheme => IdentityProvider.Apple,
                 _ => IdentityProvider.Self
@@ -83,11 +93,11 @@ public class AuthController : ControllerBase
                 Request.HttpContext.Response.Redirect(returnUrlBuilder.ToString());
             }
 
-            await Request.HttpContext.ForbidAsync(scheme);
+            await Request.HttpContext.ForbidAsync(canonicalScheme);
         }
     }
 
-    [HttpGet("refresh")]
+    [HttpGet("refresh"), AllowAnonymous]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
         var claims = await _loginService.ReadRefreshToken(token);
@@ -107,7 +117,7 @@ public class AuthController : ControllerBase
         string? refreshToken = null;
         if (claims.TryGetValue(JwtRegisteredClaimNames.Exp, out var expirationDateUnix))
         {
-            var expirationDateOffset = DateTimeOffset.FromUnixTimeSeconds((int)expirationDateUnix);
+            var expirationDateOffset = DateTimeOffset.FromUnixTimeSeconds((long)expirationDateUnix);
             var minExpirationDate = new DateTimeOffset(DateTime.UtcNow.AddDays(_myJwtOptions.RefreshTokenRenewalWindowDays));
 
             if (expirationDateOffset < minExpirationDate)
@@ -126,7 +136,7 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet, ApiExplorerSettings(IgnoreApi = true)]
+    [HttpGet("testtoken"), ApiExplorerSettings(IgnoreApi = true), AllowAnonymous]
     public IActionResult TestToken([FromQuery] string testKey)
     {
         if (_developerOptions.LoginTestKey is null || _developerOptions.LoginTestKey != testKey)
