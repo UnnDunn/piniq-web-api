@@ -114,6 +114,7 @@ public partial class Program
                 options.KeyId = appleAuthOptions.KeyId;
                 if (!string.IsNullOrEmpty(appleAuthOptions.PrivateKey))
                 {
+                    Log.Logger.Debug("Setting up Apple Sign-in with options {options}", appleAuthOptions);
                     options.GenerateClientSecret = true;
                     options.PrivateKey = (_, _) => Task.FromResult(appleAuthOptions.PrivateKey.AsMemory());
                 }
