@@ -4,6 +4,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Azure.Identity;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -79,8 +81,14 @@ public partial class Program
             builder.Configuration.GetSection("Authentication:Schemes:Bearer"));
         var myJwtBearerOptions =
             builder.Configuration.GetRequiredSection("Authentication:Schemes:Bearer").Get<MyJwtBearerOptions>();
-        var authBuilder = builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(o =>
+        var authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+            {
+                options.ForwardDefaultSelector = ctx => ctx.Request.Path.StartsWithSegments("/api")
+                    ? JwtBearerDefaults.AuthenticationScheme
+                    : null;
+            })
+            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
             {
                 if (myJwtBearerOptions is null)
                 {
@@ -136,6 +144,16 @@ public partial class Program
                 }
             });
 
+            var googleAuthOptions = builder.Configuration.GetSection("Authentication:MyOptions:Google")
+                .Get<OauthAuthenticationOptions>();
+            if (googleAuthOptions is not null)
+            {
+                authBuilder.AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
+                {
+                    options.ClientId = googleAuthOptions.ClientId;
+                    options.ClientSecret = googleAuthOptions.ClientSecret;
+                });
+            }
         }
 
         builder.Services.AddControllers();
