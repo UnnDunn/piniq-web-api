@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Entities.Login;
+using ClaimTypes = Pinball.Entities.Api.Responses.Authentication.ClaimTypes;
 using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 
 namespace Pinball.Api.Services.Interfaces.Impl;
@@ -19,9 +20,6 @@ public partial class LoginService
     private readonly ILogger<LoginService> _logger;
     private readonly MyJwtBearerOptions _myJwtOptions;
 
-    public const string OriginalIssuer = "ogiss";
-    public const string OriginalIdentifier = "ogid";
-    public const string OriginalLoginDate = "ogld";
     
     public LoginService(ILogger<LoginService> logger, IOptions<MyJwtBearerOptions> jwtOptions)
     {
@@ -34,8 +32,8 @@ public partial class LoginService
         LogActionGeneratingIdToken(identity);
         var claims = new List<Claim>
         {
-            new Claim(OriginalIdentifier, identity.Identifier),
-            new Claim(OriginalIssuer, identity.Provider.ToString())
+            new Claim(ClaimTypes.OriginalIdentifier, identity.Identifier),
+            new Claim(ClaimTypes.OriginalIssuer, identity.Provider.ToString())
         };
 
         if (additionalClaims is not null)
@@ -69,9 +67,9 @@ public partial class LoginService
         LogActionGeneratingRefreshToken(identity, originalLoginDate);
         var claims = new List<Claim>
         {
-            new Claim(OriginalIdentifier, identity.Identifier),
-            new Claim(OriginalIssuer, identity.Provider.ToString()),
-            new Claim(OriginalLoginDate, originalLoginDate.ToString("u"))
+            new Claim(ClaimTypes.OriginalIdentifier, identity.Identifier),
+            new Claim(ClaimTypes.OriginalIssuer, identity.Provider.ToString()),
+            new Claim(ClaimTypes.OriginalLoginDate, originalLoginDate.ToString("u"))
         };
 
         if (additionalClaims is not null)

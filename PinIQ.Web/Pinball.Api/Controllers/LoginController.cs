@@ -15,10 +15,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Pinball.Api.Entities.Configuration;
-using Pinball.Api.Entities.Responses;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Entities.Login;
 using Pinball.Api.Services.Interfaces.Impl;
+using Pinball.Entities.Api.Responses.Authentication;
+using LoginTokenResponse = Pinball.Api.Entities.Responses.LoginTokenResponse;
 
 namespace Pinball.Api.Controllers;
 
@@ -135,8 +136,8 @@ public partial class LoginController : ControllerBase
     {
         var claims = await _loginService.ReadRefreshToken(token);
 
-        if (!claims.TryGetValue(LoginService.OriginalIdentifier, out var originalIdentifier)
-            || !claims.TryGetValue(LoginService.OriginalIssuer, out var originalIssuer))
+        if (!claims.TryGetValue(ClaimTypes.OriginalIdentifier, out var originalIdentifier)
+            || !claims.TryGetValue(ClaimTypes.OriginalIssuer, out var originalIssuer))
         {
             return BadRequest();
         }
@@ -156,7 +157,7 @@ public partial class LoginController : ControllerBase
             if (expirationDateOffset < minExpirationDate)
             {
                 var originalLoginDate =
-                    claims.TryGetValue(LoginService.OriginalLoginDate, out var old)
+                    claims.TryGetValue(ClaimTypes.OriginalLoginDate, out var old)
                         ? DateTime.Parse(old.ToString()!)
                         : DateTime.UtcNow;
 
