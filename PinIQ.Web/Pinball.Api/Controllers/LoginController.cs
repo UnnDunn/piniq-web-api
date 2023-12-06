@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Apple;
 using Microsoft.AspNetCore.Authentication;
@@ -24,22 +23,17 @@ using LoginTokenResponse = Pinball.Api.Entities.Responses.LoginTokenResponse;
 namespace Pinball.Api.Controllers;
 
 [ApiController, Route("[controller]"), AllowAnonymous]
-public partial class LoginController : ControllerBase
+public partial class LoginController(
+    LoginService loginService,
+    IOptions<DeveloperOptions> developerOptions,
+    IOptions<MyJwtBearerOptions> myJwtOptions,
+    ILogger<LoginController> logger)
+    : ControllerBase
 {
-    private readonly LoginService _loginService;
-    private readonly DeveloperOptions _developerOptions;
-    private readonly MyJwtBearerOptions _myJwtOptions;
-    private readonly ILogger<LoginController> _logger;
+    private readonly DeveloperOptions _developerOptions = developerOptions.Value;
+    private readonly MyJwtBearerOptions _myJwtOptions = myJwtOptions.Value;
 
     private const string CallbackScheme = "piniq";
-
-    public LoginController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions, ILogger<LoginController> logger)
-    {
-        _loginService = loginService;
-        _logger = logger;
-        _myJwtOptions = myJwtOptions.Value;
-        _developerOptions = developerOptions.Value;
-    }
 
     [HttpGet("{scheme}"), AllowAnonymous]
     public async Task Login([FromRoute] string scheme)
@@ -78,7 +72,7 @@ public partial class LoginController : ControllerBase
             };
 
             var claims = auth.Principal.Identities.FirstOrDefault()?.Claims;
-            if (_logger.IsEnabled(LogLevel.Debug))
+            if (logger.IsEnabled(LogLevel.Debug))
             {
                 var claimsDictionary = claims?.Select(c => new KeyValuePair<string, string>(c.Type, c.Value));
                 LogRetrievedClaims(claimsDictionary);
@@ -88,8 +82,8 @@ public partial class LoginController : ControllerBase
             if (email is not null)
             {
                 var providerId = new ProviderIdentity(email, provider);
-                var accessToken = _loginService.BuildIdToken(providerId);
-                var refreshTokenResult = _loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
+                var accessToken = loginService.BuildIdToken(providerId);
+                var refreshTokenResult = loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
 
                 var qs = new Dictionary<string, string>()
                 {
@@ -134,7 +128,7 @@ public partial class LoginController : ControllerBase
     [HttpGet("refresh"), AllowAnonymous]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
-        var claims = await _loginService.ReadRefreshToken(token);
+        var claims = await loginService.ReadRefreshToken(token);
 
         if (!claims.TryGetValue(ClaimTypes.OriginalIdentifier, out var originalIdentifier)
             || !claims.TryGetValue(ClaimTypes.OriginalIssuer, out var originalIssuer))
@@ -146,7 +140,7 @@ public partial class LoginController : ControllerBase
             return BadRequest();
         
         var providerId = new ProviderIdentity(originalIdentifier.ToString()!, originalIssuerEnum);
-        var accessToken = _loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
+        var accessToken = loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
 
         string? refreshToken = null;
         if (claims.TryGetValue(JwtRegisteredClaimNames.Exp, out var expirationDateUnix))
@@ -161,7 +155,7 @@ public partial class LoginController : ControllerBase
                         ? DateTime.Parse(old.ToString()!)
                         : DateTime.UtcNow;
 
-                refreshToken = _loginService.BuildRefreshToken(providerId, originalLoginDate).RefreshToken;
+                refreshToken = loginService.BuildRefreshToken(providerId, originalLoginDate).RefreshToken;
             }
         }
 
@@ -181,8 +175,8 @@ public partial class LoginController : ControllerBase
         var testId = new ProviderIdentity("TestID", IdentityProvider.Self);
 
         var originalLoginDate = DateTime.UtcNow;
-        var accessToken = _loginService.BuildIdToken(testId).AccessToken ?? string.Empty;
-        var refreshToken = _loginService.BuildRefreshToken(testId, originalLoginDate).RefreshToken;
+        var accessToken = loginService.BuildIdToken(testId).AccessToken ?? string.Empty;
+        var refreshToken = loginService.BuildRefreshToken(testId, originalLoginDate).RefreshToken;
 
         var result = new LoginTokenResponse(accessToken, refreshToken);
 

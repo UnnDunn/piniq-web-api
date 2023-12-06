@@ -42,7 +42,7 @@ public partial class Program
 
         if (!string.IsNullOrEmpty(azKeyVaultConnectionString))
         {
-            // found a keyvault connection string, so configure azure key-vault
+            // found a key vault connection string, so configure azure key-vault
             builder.Configuration.AddAzureKeyVault(new Uri(azKeyVaultConnectionString), new DefaultAzureCredential());
         }
         
