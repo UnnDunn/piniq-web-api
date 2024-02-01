@@ -73,6 +73,14 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         return result;
     }
 
+    public async Task<List<OpdbCatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids)
+    {
+        using var log = _logger.BeginScope("Querying database for catalog snapshots with IDs {ids}", ids);
+        var result = await _dbContext.CatalogSnapshots.AsNoTracking().Where(s => ids.Contains(s.Id)).ToListAsync();
+        _logger.LogInformation("Found {count} catalog snapshots matching criteria", result.Count);
+        return result;
+    }
+
     public async Task<OpdbCatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
     {
         LogGettingPublishedCatalogSnapshots();
@@ -93,8 +101,8 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         if(latestSnapshot != null)
         {
 
-            if (DateTime.UtcNow - latestSnapshot.Imported < TimeSpan.FromHours(1))
-                throw new OpdbException($"The newest snapshot cannot be retrieved right now. Please wait until {latestSnapshot.Imported.AddHours(1)}.");
+                if (DateTimeOffset.Now - latestSnapshot.Imported < TimeSpan.FromHours(1))
+                    throw new OpdbException($"The newest snapshot cannot be retrieved right now. Please wait until {latestSnapshot.Imported.AddHours(1)}.");
         }
 
         // get the latest snapshot from Opdb
@@ -104,7 +112,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // save the snapshot to the database
         var catalogExportEntry = new OpdbCatalogSnapshot
         {
-            Imported = DateTime.UtcNow,
+            Imported = DateTimeOffset.Now,
             MachineJsonResponse = exportMachinesResponse.JsonResponse,
             MachineGroupJsonResponse = exportMachineGroupsResponse.JsonResponse,
         };
@@ -159,7 +167,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await MapPinballKeywordsAsync(machines);
 
         // mark snapshot as published
-        latestSnapshot.Published = DateTime.UtcNow;
+        latestSnapshot.Published = DateTimeOffset.Now;
         LogProcessMarkingCatalogSnapshotAsPublished(latestSnapshot.Id, latestSnapshot.Published.Value);
         await _dbContext.SaveChangesAsync();
 
@@ -436,13 +444,13 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     private partial void LogIssueNoCatalogSnapshotsFound();
 
     [LoggerMessage(EventId = 1007, Level = LogLevel.Information, Message = "Latest Catalog Snapshot found with id {id}, imported on {importedDate}.")]
-    private partial void LogProcessLatestCatalogSnapshotIdentified(int id, DateTime importedDate);
+    private partial void LogProcessLatestCatalogSnapshotIdentified(int id, DateTimeOffset importedDate);
 
     [LoggerMessage(EventId = 1008, Level = LogLevel.Information, Message = "Could not publish latest Catalog Snapshot with id {id} because it was already published on {publishedDate}")]
-    private partial void LogIssueCatalogSnapshotAlreadyPublished(int id, DateTime publishedDate);
+    private partial void LogIssueCatalogSnapshotAlreadyPublished(int id, DateTimeOffset publishedDate);
 
     [LoggerMessage(EventId = 1009, Level = LogLevel.Information, Message = "Marking Catalog Snapshot {id} as Published on {publishedDate}.")]
-    private partial void LogProcessMarkingCatalogSnapshotAsPublished(int id, DateTime publishedDate);
+    private partial void LogProcessMarkingCatalogSnapshotAsPublished(int id, DateTimeOffset publishedDate);
 
     [LoggerMessage(EventId = 1010,
         Level = LogLevel.Debug,
