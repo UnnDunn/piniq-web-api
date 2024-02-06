@@ -20,6 +20,7 @@ using Pinball.Api.Entities.Configuration;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Api.Services.Interfaces.Impl;
+using Pinball.Entities.Api.Responses;
 using Pinball.OpdbClient.Entities;
 using Pinball.OpdbClient.Interfaces;
 using Serilog;
@@ -156,7 +157,9 @@ public partial class Program
             }
         }
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            .AddJsonOptions(static options =>
+                options.JsonSerializerOptions.TypeInfoResolverChain.Add(PiniqJsonSerializerContext.Default));
 
         builder.Services.AddMvcCore().AddApiExplorer();
 

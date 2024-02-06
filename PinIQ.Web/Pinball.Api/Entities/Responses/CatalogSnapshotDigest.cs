@@ -32,6 +32,8 @@ namespace Pinball.Api.Entities.Responses
                     Id = o.Id,
                     Imported = o.Imported,
                     Published = o.Published,
+                    Created = o.Created,
+                    Updated = o.Updated,
                     MachineCount = machines.Count(),
                     MachineGroupCount = machineGroups.Count(),
                     ManufacturerCount = machines
