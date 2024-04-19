@@ -23,15 +23,23 @@ using LoginTokenResponse = Pinball.Api.Entities.Responses.LoginTokenResponse;
 namespace Pinball.Api.Controllers;
 
 [ApiController, Route("[controller]"), AllowAnonymous]
-public partial class LoginController(
-    LoginService loginService,
-    IOptions<DeveloperOptions> developerOptions,
-    IOptions<MyJwtBearerOptions> myJwtOptions,
-    ILogger<LoginController> logger)
-    : ControllerBase
+public partial class LoginController : ControllerBase
 {
-    private readonly DeveloperOptions _developerOptions = developerOptions.Value;
-    private readonly MyJwtBearerOptions _myJwtOptions = myJwtOptions.Value;
+    private readonly DeveloperOptions _developerOptions;
+    private readonly MyJwtBearerOptions _myJwtOptions;
+    private readonly LoginService _loginService;
+    private readonly ILogger<LoginController> _logger;
+
+    public LoginController(LoginService loginService,
+        IOptions<DeveloperOptions> developerOptions,
+        IOptions<MyJwtBearerOptions> myJwtOptions,
+        ILogger<LoginController> logger)
+    {
+        _loginService = loginService;
+        _logger = logger;
+        _developerOptions = developerOptions.Value;
+        _myJwtOptions = myJwtOptions.Value;
+    }
 
     private const string CallbackScheme = "piniq";
 
@@ -72,7 +80,7 @@ public partial class LoginController(
             };
 
             var claims = auth.Principal.Identities.FirstOrDefault()?.Claims;
-            if (logger.IsEnabled(LogLevel.Debug))
+            if (_logger.IsEnabled(LogLevel.Debug))
             {
                 var claimsDictionary = claims?.Select(c => new KeyValuePair<string, string>(c.Type, c.Value));
                 LogRetrievedClaims(claimsDictionary);
@@ -82,8 +90,8 @@ public partial class LoginController(
             if (email is not null)
             {
                 var providerId = new ProviderIdentity(email, provider);
-                var accessToken = loginService.BuildIdToken(providerId);
-                var refreshTokenResult = loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
+                var accessToken = _loginService.BuildIdToken(providerId);
+                var refreshTokenResult = _loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
 
                 var qs = new Dictionary<string, string>()
                 {
@@ -128,7 +136,7 @@ public partial class LoginController(
     [HttpGet("refresh"), AllowAnonymous]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
-        var claims = await loginService.ReadRefreshToken(token);
+        var claims = await _loginService.ReadRefreshToken(token);
 
         if (!claims.TryGetValue(ClaimTypes.OriginalIdentifier, out var originalIdentifier)
             || !claims.TryGetValue(ClaimTypes.OriginalIssuer, out var originalIssuer))
@@ -140,7 +148,7 @@ public partial class LoginController(
             return BadRequest();
         
         var providerId = new ProviderIdentity(originalIdentifier.ToString()!, originalIssuerEnum);
-        var accessToken = loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
+        var accessToken = _loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
 
         string? refreshToken = null;
         if (claims.TryGetValue(JwtRegisteredClaimNames.Exp, out var expirationDateUnix))
@@ -155,7 +163,7 @@ public partial class LoginController(
                         ? DateTime.Parse(old.ToString()!)
                         : DateTime.UtcNow;
 
-                refreshToken = loginService.BuildRefreshToken(providerId, originalLoginDate).RefreshToken;
+                refreshToken = _loginService.BuildRefreshToken(providerId, originalLoginDate).RefreshToken;
             }
         }
 
@@ -175,8 +183,8 @@ public partial class LoginController(
         var testId = new ProviderIdentity("TestID", IdentityProvider.Self);
 
         var originalLoginDate = DateTime.UtcNow;
-        var accessToken = loginService.BuildIdToken(testId).AccessToken ?? string.Empty;
-        var refreshToken = loginService.BuildRefreshToken(testId, originalLoginDate).RefreshToken;
+        var accessToken = _loginService.BuildIdToken(testId).AccessToken ?? string.Empty;
+        var refreshToken = _loginService.BuildRefreshToken(testId, originalLoginDate).RefreshToken;
 
         var result = new LoginTokenResponse(accessToken, refreshToken);
 
