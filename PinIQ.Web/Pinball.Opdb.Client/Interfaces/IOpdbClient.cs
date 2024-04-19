@@ -13,6 +13,6 @@ namespace Pinball.OpdbClient.Interfaces
         Task<IOpdbResponse> GetAsync(int id);
         Task<IOpdbResponse> ExportAsync();
         Task<IOpdbResponse> ExportGroupsAsync();
-        Task<IOpdbResponse> GetChangelogAsync(DateTime? from = null);
+        Task<IOpdbResponse> GetChangelogAsync(DateTimeOffset? from = null);
     }
 }

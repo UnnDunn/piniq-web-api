@@ -9,6 +9,6 @@ public record CatalogSnapshotPublishResult
     public int ManufacturerTotal { get; set; }
     public int KeywordTotal { get; set; }
     public int SnapshotId { get; set; }
-    public DateTime Imported { get; set; }
+    public DateTimeOffset Imported { get; set; }
 }
 

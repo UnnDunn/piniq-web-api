@@ -97,7 +97,7 @@ public partial class LoginController(
                 var qString = string.Join("&", qs.Where(kvp => !string.IsNullOrEmpty(kvp.Value) && kvp.Value != "-1")
                     .Select(kvp => $"{WebUtility.UrlEncode(kvp.Key)}={WebUtility.UrlEncode(kvp.Value)}"));
 
-                var returnUrlBuilder = new UriBuilder(CallbackScheme, string.Empty)
+                var returnUrlBuilder = new UriBuilder(CallbackScheme, "loggedin")
                 {
                     Fragment = qString
                 };

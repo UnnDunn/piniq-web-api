@@ -20,4 +20,5 @@ public interface IPinballMachineCatalogService
     Task<Dictionary<string, int>> GetAllMachineTypesAsync();
     Task<Dictionary<string, int>> GetAllDisplayTypesAsync();
     Task ResetCatalogAsync();
+    Task<List<OpdbCatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids);
 }

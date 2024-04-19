@@ -53,7 +53,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpGet]
-        [Route("{id}")] //GET /api/admin/PinballMachineCatalogSnapshots/5
+        [Route("{id:int}")] //GET /api/admin/PinballMachineCatalogSnapshots/5
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<CatalogSnapshot>> Get(int id)
@@ -63,6 +63,15 @@ namespace Pinball.Api.Controllers.Admin
             {
                 return NotFound();
             }
+            return Ok(result);
+        }
+
+        [HttpGet]
+        [Route(@"{ids:regex(^(\d{{1,3}},)*\d{{1,3}}$)}", Order = 1)] //GET /api/admin/PinballMachineCatalogSnapshots/4,5,6
+        public async Task<ActionResult<List<CatalogSnapshot>>> Get(string ids)
+        {
+            var idArray = ids.Split(',').Select(int.Parse).ToArray();
+            var result = await _catalogService.GetCatalogSnapshotsAsync(idArray);
             return Ok(result);
         }
 
@@ -83,7 +92,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpGet]
-        [Route("currentSnapshot")] //GET /api/admin/PinballMachineCatalogSnapshots/currentSnapshot
+        [Route("published")] //GET /api/admin/PinballMachineCatalogSnapshots/published
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<CatalogSnapshot>> GetPublished()
@@ -97,7 +106,7 @@ namespace Pinball.Api.Controllers.Admin
         }
 
         [HttpDelete]
-        [Route("{id}")] //DELETE /api/admin/PinballMachineCatalogSnapshots/5
+        [Route("{id:int}")] //DELETE /api/admin/PinballMachineCatalogSnapshots/5
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

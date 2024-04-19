@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using Microsoft.Extensions.Options;
 using Pinball.OpdbClient.Helpers;
+using System.Text.Json;
 
 namespace Pinball.OpdbClient.Interfaces.Impl
 {
@@ -43,7 +44,7 @@ namespace Pinball.OpdbClient.Interfaces.Impl
             return result;
         }
 
-        public async Task<IOpdbResponse> GetChangelogAsync(DateTime? from = null)
+        public async Task<IOpdbResponse> GetChangelogAsync(DateTimeOffset? from = null)
         {
             if (from.HasValue)
             {
@@ -73,19 +74,28 @@ namespace Pinball.OpdbClient.Interfaces.Impl
 
         private async Task<OpdbResponse> ExecuteRequest<T>(string uriString, Dictionary<string, string>? queryOptions = null)
         {
-            var result = new OpdbResponse()
-            {
-                Status = OpdbResponseStatus.Ok
-            };
             var uri = GetUri(uriString, queryOptions);
             var client = _httpClientFactory.CreateClient();
 
             var response = await client.GetAsync(uri);
             response.EnsureSuccessStatusCode();
             var responseJson = await response.Content.ReadAsStringAsync();
-            result.JsonResponse = responseJson;
-            return result;
+            var resultObject = JsonSerializer.Deserialize<T>(responseJson);
+            if (resultObject is null)
+                return new OpdbResponse
+                {
+                    Status = OpdbResponseStatus.Ok,
+                    JsonResponse = responseJson
+                };
+            
+            return new OpdbResponse<T>
+            {
+                Status = OpdbResponseStatus.Ok,
+                JsonResponse = responseJson,
+                Result = resultObject
+            };
         }
+        
 
         private Uri GetUri(string endpoint, Dictionary<string, string>? queryOptions = null)
         {
