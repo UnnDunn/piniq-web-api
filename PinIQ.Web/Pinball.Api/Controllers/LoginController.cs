@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Apple;
 using Microsoft.AspNetCore.Authentication;
@@ -26,20 +25,23 @@ namespace Pinball.Api.Controllers;
 [ApiController, Route("[controller]"), AllowAnonymous]
 public partial class LoginController : ControllerBase
 {
-    private readonly LoginService _loginService;
     private readonly DeveloperOptions _developerOptions;
     private readonly MyJwtBearerOptions _myJwtOptions;
+    private readonly LoginService _loginService;
     private readonly ILogger<LoginController> _logger;
 
-    private const string CallbackScheme = "piniq";
-
-    public LoginController(LoginService loginService, IOptions<DeveloperOptions> developerOptions, IOptions<MyJwtBearerOptions> myJwtOptions, ILogger<LoginController> logger)
+    public LoginController(LoginService loginService,
+        IOptions<DeveloperOptions> developerOptions,
+        IOptions<MyJwtBearerOptions> myJwtOptions,
+        ILogger<LoginController> logger)
     {
         _loginService = loginService;
         _logger = logger;
-        _myJwtOptions = myJwtOptions.Value;
         _developerOptions = developerOptions.Value;
+        _myJwtOptions = myJwtOptions.Value;
     }
+
+    private const string CallbackScheme = "piniq";
 
     [HttpGet("{scheme}"), AllowAnonymous]
     public async Task Login([FromRoute] string scheme)
