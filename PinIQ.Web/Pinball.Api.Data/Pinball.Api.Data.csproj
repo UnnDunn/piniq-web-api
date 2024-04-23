@@ -22,11 +22,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="UnnDunn.Pinball.Entities" Version="3.0.1-CI-20240207-010254" />
+    <PackageReference Include="UnnDunn.Pinball.Entities" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Entities\" />
+    <Folder Include="Helpers\" />
   </ItemGroup>
 
 </Project>

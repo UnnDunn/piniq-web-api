@@ -1,6 +1,4 @@
-﻿using Pinball.OpdbClient.Entities;
-using Pinball.OpdbClient.Helpers;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +7,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Pinball.Entities.Api.Responses.PinballCatalog;
 using Pinball.Entities.Data.Opdb;
+using Pinball.Entities.Opdb;
+using Pinball.Entities.Opdb.Helpers;
 
 namespace Pinball.Api.Entities.Responses
 {
@@ -19,11 +19,8 @@ namespace Pinball.Api.Entities.Responses
             using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(o.MachineJsonResponse)))
             using (var mgs = new MemoryStream(Encoding.UTF8.GetBytes(o.MachineGroupJsonResponse)))
             {
-                var jsonOptions = new JsonSerializerOptions();
-                jsonOptions.Converters.Add(new NullableDateTimeConverterWithParseFallback());
-
-                var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms, jsonOptions);
-                var machineGroups = await JsonSerializer.DeserializeAsync<IEnumerable<MachineGroup>>(mgs, jsonOptions);
+                var machines = await JsonSerializer.DeserializeAsync(ms, OpdbJsonSerializerContext.Default.ListMachine);
+                var machineGroups = await JsonSerializer.DeserializeAsync(mgs, OpdbJsonSerializerContext.Default.ListMachineGroup);
 
                 if (machines is null || machineGroups is null)
                     throw new Exception("Parsing machines or machine groups from Opdb failed");

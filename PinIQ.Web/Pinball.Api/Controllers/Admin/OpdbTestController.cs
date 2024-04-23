@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Pinball.Api.Services.Interfaces;
-using Pinball.OpdbClient.Entities;
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Pinball.Entities.Opdb;
 
 namespace Pinball.Api.Controllers.Admin;
 

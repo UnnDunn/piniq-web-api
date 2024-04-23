@@ -1,6 +1,6 @@
-﻿using Pinball.OpdbClient.Entities;
-using Pinball.OpdbClient.Interfaces;
+﻿using Pinball.OpdbClient.Interfaces;
 using System.Threading.Tasks;
+using Pinball.Entities.Opdb;
 
 namespace Pinball.Api.Services.Interfaces.Impl;
 

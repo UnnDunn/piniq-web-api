@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +11,7 @@ using Pinball.Api.Services.Entities;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Entities.Api.Responses.PinballCatalog;
+using CatalogSnapshotPublishResult = Pinball.Entities.Api.Responses.PinballCatalog.CatalogSnapshotPublishResult;
 
 namespace Pinball.Api.Controllers.Admin
 {
@@ -27,25 +30,21 @@ namespace Pinball.Api.Controllers.Admin
 
         [HttpGet]
         [Route("")] //GET /api/admin/PinballMachineCatalogSnapshots
-        public async Task<ActionResult<IEnumerable<CatalogSnapshotDigest>>> GetAll()
+        public async Task<ActionResult<IEnumerable<CatalogSnapshot>>> GetAll()
         {
             var snapshots = await _catalogService.GetAllCatalogSnapshotsAsync();
 
-            var digestTasks = await Task.WhenAll(snapshots.Select(s => s.ToCatalogSnapshotDigestAsync()));
-            var result = digestTasks.ToList();
-
-            return Ok(result);
+            return Ok(snapshots);
         }
 
         [HttpPost]
         [Route("Import")] //POST /api/admin/PinballMachineCatalogSnapshots/Import
-        public async Task<ActionResult<CatalogSnapshotDigest>> Import()
+        public async Task<ActionResult<CatalogSnapshot>> Import()
         {
             try
             {
                 var snapshot = await _catalogService.ImportNewCatalogSnapshotAsync();
-                var result = await snapshot.ToCatalogSnapshotDigestAsync();
-                return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+                return CreatedAtAction(nameof(Get), new { id = snapshot.Id }, snapshot);
             } catch (OpdbException o)
             {
                 return BadRequest(o.Message);
@@ -88,6 +87,22 @@ namespace Pinball.Api.Controllers.Admin
             catch (CatalogSnapshotException ex)
             {
                 return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("Refresh")] //POST /api/admin/PinballMachineCatalogSnapshots/Refresh
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> RefreshCatalogSnapshots()
+        {
+            try
+            {
+                await _catalogService.RefreshCatalogSnapshotsAsync();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message, null, StatusCodes.Status500InternalServerError);
             }
         }
 

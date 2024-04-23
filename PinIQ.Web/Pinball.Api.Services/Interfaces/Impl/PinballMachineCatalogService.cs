@@ -1,10 +1,7 @@
 ﻿using EFCore.BulkExtensions;
 using Microsoft.EntityFrameworkCore;
 using Pinball.Api.Data;
-using Pinball.Api.Services.Entities;
 using Pinball.Api.Services.Entities.Exceptions;
-using Pinball.OpdbClient.Entities;
-using Pinball.OpdbClient.Helpers;
 using Pinball.OpdbClient.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -15,8 +12,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Pinball.Entities.Api.Responses.PinballCatalog;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
+using Pinball.Entities.Opdb;
+using Pinball.Entities.Opdb.Helpers;
+using CatalogSnapshotPublishResult = Pinball.Api.Services.Entities.CatalogSnapshotPublishResult;
 
 namespace Pinball.Api.Services.Interfaces.Impl;
 
@@ -66,25 +67,89 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
 
-    public async Task<OpdbCatalogSnapshot?> GetCatalogSnapshotAsync(int id)
+    public async Task RefreshCatalogSnapshotsAsync()
+    {
+        LogActionRefreshingCatalogSnapshots();
+        var snapshots = await _dbContext.CatalogSnapshots.ToListAsync();
+        foreach (var snapshot in snapshots)
+        {
+            _dbContext.Entry(snapshot).State = EntityState.Modified;
+        }
+
+        await _dbContext.SaveChangesAsync();
+    }
+    
+    public async Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id)
     {
         LogActionGettingCatalogSnapshotById(id);
-        var result = await _dbContext.CatalogSnapshots.FindAsync(id);
+        var result = await _dbContext
+            .CatalogSnapshots
+            .AsNoTracking()
+            .Select(o => new CatalogSnapshot
+            {
+                Id = o.Id,
+                Imported = o.Imported,
+                Published = o.Published,
+                Machines = o.Machines,
+                MachineGroups = o.MachineGroups,
+                MachineCount = o.MachineCount,
+                MachineGroupCount = o.MachineGroupCount,
+                ManufacturerCount = o.ManufacturerCount,
+                KeywordCount = o.KeywordCount,
+                NewestMachine = o.NewestMachine,
+                Created = o.Created,
+                Updated = o.Updated
+            })
+            .FirstOrDefaultAsync(o => o.Id == id);
         return result;
     }
 
-    public async Task<List<OpdbCatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids)
+    public async Task<List<CatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids)
     {
         using var log = _logger.BeginScope("Querying database for catalog snapshots with IDs {ids}", ids);
-        var result = await _dbContext.CatalogSnapshots.AsNoTracking().Where(s => ids.Contains(s.Id)).ToListAsync();
+        var result = await _dbContext
+            .CatalogSnapshots
+            .AsNoTracking()
+            .Select(o => new CatalogSnapshot
+            {
+                Id = o.Id,
+                Imported = o.Imported,
+                Published = o.Published,
+                Machines = o.Machines,
+                MachineGroups = o.MachineGroups,
+                MachineCount = o.MachineCount,
+                MachineGroupCount = o.MachineGroupCount,
+                ManufacturerCount = o.ManufacturerCount,
+                KeywordCount = o.KeywordCount,
+                NewestMachine = o.NewestMachine,
+                Created = o.Created,
+                Updated = o.Updated
+            })
+            .Where(s => ids.Contains(s.Id))
+            .ToListAsync();
         _logger.LogInformation("Found {count} catalog snapshots matching criteria", result.Count);
         return result;
     }
 
-    public async Task<OpdbCatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
+    public async Task<CatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
     {
         LogGettingPublishedCatalogSnapshots();
         var result = await _dbContext.CatalogSnapshots
+            .Select(o => new CatalogSnapshot
+            {
+                Id = o.Id,
+                Imported = o.Imported,
+                Published = o.Published,
+                Machines = o.Machines,
+                MachineGroups = o.MachineGroups,
+                MachineCount = o.MachineCount,
+                MachineGroupCount = o.MachineGroupCount,
+                ManufacturerCount = o.ManufacturerCount,
+                KeywordCount = o.KeywordCount,
+                NewestMachine = o.NewestMachine,
+                Created = o.Created,
+                Updated = o.Updated
+            })
             .Where(s => s.Published != null)
             .OrderByDescending(s => s.Published)
             .AsNoTracking()
@@ -92,7 +157,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         return result;
     }
 
-    public async Task<OpdbCatalogSnapshot> ImportNewCatalogSnapshotAsync()
+    public async Task<CatalogSnapshot> ImportNewCatalogSnapshotAsync()
     {
         LogActionImportingCatalogSnapshots();
         // check database to see when the last snapshot was retrieved
@@ -142,10 +207,9 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             throw new CatalogSnapshotException(latestSnapshot.Id, "The latest snapshot has already been published");
         }
 
-        using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
-        using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineGroupJsonResponse));
-        var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
-        var machineGroups = await JsonSerializer.DeserializeAsync<IEnumerable<MachineGroup>>(mgs);
+
+        var machines = latestSnapshot.Machines;
+        var machineGroups = latestSnapshot.MachineGroups;
 
         if (machines is null || machineGroups is null)
             throw new Exception("Machine snapshot JSON could not be parsed.");
@@ -250,7 +314,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             ManufactureDate = m.ManufactureDate,
             ManufacturerId = m.Manufacturer?.ManufacturerId,
             PlayerCount = (short)m.PlayerCount,
-            MachineGroupId = m.OpdbId.GroupString,
+            MachineGroupId = m.OpdbIdentifier.GroupString,
             TypeId = m.MachineType
         }).ToList();
 
@@ -285,7 +349,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             var mappings = machine.Keywords?.Select(kw => new PinballMachineKeywordMapping
             {
                 KeywordId = savedKeywords[kw],
-                MachineId = machine.OpdbId.ToString()
+                MachineId = machine.OpdbId
             });
             if (mappings is not null)
                 keywordMappings.AddRange(mappings);
@@ -294,9 +358,25 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await _dbContext.BulkInsertOrUpdateAsync(keywordMappings);
     }
 
-    public async Task<IEnumerable<OpdbCatalogSnapshot>> GetAllCatalogSnapshotsAsync()
+    public async Task<IEnumerable<CatalogSnapshot>> GetAllCatalogSnapshotsAsync()
     {
-        var result = await _dbContext.CatalogSnapshots.AsNoTracking().ToListAsync();
+        var result = await _dbContext
+            .CatalogSnapshots
+            .AsNoTracking()
+            .Select(o => new CatalogSnapshot
+            {
+                Id = o.Id,
+                Imported = o.Imported,
+                Published = o.Published,
+                MachineCount = o.MachineCount,
+                MachineGroupCount = o.MachineGroupCount,
+                ManufacturerCount = o.ManufacturerCount,
+                KeywordCount = o.KeywordCount,
+                NewestMachine = o.NewestMachine,
+                Created = o.Created,
+                Updated = o.Updated
+            })
+            .ToListAsync();
         return result;
     }
 
@@ -393,8 +473,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             throw new InvalidOperationException("No snapshots exist to get machine types for");
         }
 
-        using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
-        var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
+        var machines = latestSnapshot.Machines;
 
         if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
         var machineTypeGroups = machines.GroupBy(m => m.MachineType).ToDictionary(g => g.Key?.ToString() ?? "Unknown", g => g.Count());
@@ -411,8 +490,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             throw new InvalidOperationException("No snapshots exist to get display types for");
         }
 
-        using var ms = new MemoryStream(Encoding.UTF8.GetBytes(latestSnapshot.MachineJsonResponse));
-        var machines = await JsonSerializer.DeserializeAsync<IEnumerable<Machine>>(ms);
+        var machines = latestSnapshot.Machines;
 
         if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
         var displayTypeGroups = machines.GroupBy(m => m.Display ?? "null").ToDictionary(g => g.Key.ToString(), g => g.Count());
@@ -474,6 +552,9 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     [LoggerMessage(EventId = 1015, Level = LogLevel.Debug, Message = "Updating changelogs from OPDB.")]
     private partial void LogActionUpdatingChangelogs();
 
+    [LoggerMessage(EventId = 1016, Level = LogLevel.Information,
+        Message = "Refreshing all catalog snapshot cached data")]
+    private partial void LogActionRefreshingCatalogSnapshots();
 
     #endregion
 }

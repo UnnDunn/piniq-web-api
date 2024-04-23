@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 namespace Pinball.Api.Services.Entities.Exceptions;
 

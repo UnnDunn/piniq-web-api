@@ -21,7 +21,7 @@ using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Api.Services.Interfaces.Impl;
 using Pinball.Entities.Api.Responses;
-using Pinball.OpdbClient.Entities;
+using Pinball.Entities.Opdb;
 using Pinball.OpdbClient.Interfaces;
 using Serilog;
 using Serilog.Sinks.ApplicationInsights.TelemetryConverters;

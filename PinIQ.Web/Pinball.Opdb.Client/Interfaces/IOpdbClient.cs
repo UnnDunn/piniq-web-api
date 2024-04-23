@@ -1,7 +1,7 @@
-﻿using Pinball.OpdbClient.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Pinball.Entities.Opdb;
 
 namespace Pinball.OpdbClient.Interfaces
 {

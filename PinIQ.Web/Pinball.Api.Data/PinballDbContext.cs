@@ -1,15 +1,22 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.Extensions.Logging;
 using Pinball.Entities.Data.Helpers;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
+using Pinball.Entities.Opdb.Helpers;
 
 namespace Pinball.Api.Data
 {
-    public class PinballDbContext : DbContext
+    public partial class PinballDbContext : DbContext
     {
+        private ILogger<PinballDbContext> _logger;
+        
         private const string SqlCaseInsensitiveCollationName = "SQL_Latin1_General_CP1_CS_AS";
 
         private string _caseInsensitiveCollationName = SqlCaseInsensitiveCollationName;
@@ -22,8 +29,51 @@ namespace Pinball.Api.Data
         public DbSet<PinballMachineKeyword> PinballKeywords { get; set; } = null!;
         public DbSet<PinballMachineGroup> PinballMachineGroups { get; set; } = null!;
 
-        public PinballDbContext(DbContextOptions<PinballDbContext> options) : base(options)
+        public PinballDbContext(DbContextOptions<PinballDbContext> options, ILogger<PinballDbContext> logger) : base(options)
         {
+            _logger = logger;
+            SavingChanges += SetCatalogSnapshotDigestInformation;
+        }
+
+        private void SetCatalogSnapshotDigestInformation(object? sender, SavingChangesEventArgs e)
+        {
+            LogSettingCatalogSnapshotDigestInformation();
+            foreach (var entity in ChangeTracker.Entries<OpdbCatalogSnapshot>().ToList())
+            {
+                if (entity.State is not (EntityState.Added or EntityState.Modified)) continue;
+                using var ms = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineJsonResponse));
+                using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineGroupJsonResponse));
+                var machines =
+                    JsonSerializer.Deserialize(ms, OpdbJsonSerializerContext.Default.ListMachine);
+                var machineGroups = JsonSerializer.Deserialize(mgs,
+                    OpdbJsonSerializerContext.Default.ListMachineGroup);
+
+                if (machines is null || machineGroups is null)
+                    throw new Exception("Parsing machines or machine groups from Opdb failed");
+                        
+                entity.Entity.Machines = machines;
+                entity.Entity.MachineGroups = machineGroups;
+
+                entity.Entity.MachineCount = machines.Count;
+                entity.Entity.MachineGroupCount = machineGroups.Count;
+                entity.Entity.ManufacturerCount = machines
+                    .Where(m => m.Manufacturer != null)
+                    .Select(m => m.Manufacturer?.ManufacturerId)
+                    .Distinct()
+                    .Count();
+                entity.Entity.KeywordCount = machines.SelectMany(m => m.Keywords ?? [])
+                    .Distinct().Count();
+
+                var newestMachine = machines.MaxBy(m => m.ManufactureDate);
+                entity.Entity.NewestMachine = newestMachine?.Name ?? "N/A";
+            }
+        }
+
+        public override void Dispose()
+        {
+            SavingChanges -= SetCatalogSnapshotDigestInformation;
+            GC.SuppressFinalize(this);
+            base.Dispose();
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -77,30 +127,46 @@ namespace Pinball.Api.Data
 
             modelBuilder.Entity<OpdbCatalogSnapshot>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
             modelBuilder.Entity<OpdbCatalogSnapshot>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
+            modelBuilder.Entity<OpdbCatalogSnapshot>().OwnsMany(cs => cs.Machines, ownedMachineBuilder =>
+            {
+                ownedMachineBuilder.ToJson();
+                ownedMachineBuilder.Ignore(m => m.OpdbIdentifier);
+                ownedMachineBuilder.OwnsOne(m => m.Manufacturer, ownedManufacturerBuilder =>
+                {
+                    ownedManufacturerBuilder.ToJson();
+                });
+            });
+            modelBuilder.Entity<OpdbCatalogSnapshot>().OwnsMany(cs => cs.MachineGroups, ownedMachineGroupBuilder =>
+            {
+                ownedMachineGroupBuilder.ToJson();
+                ownedMachineGroupBuilder.Ignore(mg => mg.OpdbIdentifier);
+            });
             modelBuilder.Entity<OpdbChangelog>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
             modelBuilder.Entity<OpdbChangelog>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
-            
-            if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+
+            if (Database.ProviderName != "Microsoft.EntityFrameworkCore.Sqlite") return;
+            // SQLite does not have proper support for DateTimeOffset via Entity Framework Core, see the limitations
+            // here: https://docs.microsoft.com/en-us/ef/core/providers/sqlite/limitations#query-limitations
+            // To work around this, when the Sqlite database provider is used, all model properties of type DateTimeOffset
+            // use the DateTimeOffsetToBinaryConverter
+            // Based on: https://github.com/aspnet/EntityFrameworkCore/issues/10784#issuecomment-415769754
+            // This only supports millisecond precision, but should be sufficient for most use cases.
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
-                // SQLite does not have proper support for DateTimeOffset via Entity Framework Core, see the limitations
-                // here: https://docs.microsoft.com/en-us/ef/core/providers/sqlite/limitations#query-limitations
-                // To work around this, when the Sqlite database provider is used, all model properties of type DateTimeOffset
-                // use the DateTimeOffsetToBinaryConverter
-                // Based on: https://github.com/aspnet/EntityFrameworkCore/issues/10784#issuecomment-415769754
-                // This only supports millisecond precision, but should be sufficient for most use cases.
-                foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+                var properties = entityType.ClrType.GetProperties().Where(p => p.PropertyType == typeof(DateTimeOffset)
+                                                                               || p.PropertyType == typeof(DateTimeOffset?));
+                foreach (var property in properties)
                 {
-                    var properties = entityType.ClrType.GetProperties().Where(p => p.PropertyType == typeof(DateTimeOffset)
-                        || p.PropertyType == typeof(DateTimeOffset?));
-                    foreach (var property in properties)
-                    {
-                        modelBuilder
-                            .Entity(entityType.Name)
-                            .Property(property.Name)
-                            .HasConversion(new DateTimeOffsetToBinaryConverter());
-                    }
+                    modelBuilder
+                        .Entity(entityType.Name)
+                        .Property(property.Name)
+                        .HasConversion(new DateTimeOffsetToBinaryConverter());
                 }
             }
         }
+
+        [LoggerMessage(EventId = 1401, Level = LogLevel.Information,
+            Message = "Setting CatalogSnapshot Digest information")]
+        private partial void LogSettingCatalogSnapshotDigestInformation();
     }
 }

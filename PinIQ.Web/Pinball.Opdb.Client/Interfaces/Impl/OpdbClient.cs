@@ -1,11 +1,11 @@
-﻿using Pinball.OpdbClient.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Microsoft.Extensions.Options;
-using Pinball.OpdbClient.Helpers;
 using System.Text.Json;
+using Pinball.Entities.Opdb;
+using Pinball.Entities.Opdb.Helpers;
 
 namespace Pinball.OpdbClient.Interfaces.Impl
 {
@@ -22,13 +22,13 @@ namespace Pinball.OpdbClient.Interfaces.Impl
 
         public async Task<IOpdbResponse> ExportAsync()
         {
-            var result = await ExecuteRequest<IEnumerable<Machine>>("/export");
+            var result = await ExecuteRequest<List<Machine>>("/export");
             return result;
         }
 
         public async Task<IOpdbResponse> ExportGroupsAsync()
         {
-            var result = await ExecuteRequest<IEnumerable<MachineGroup>>("/export/groups");
+            var result = await ExecuteRequest<List<MachineGroup>>("/export/groups");
             return result;
         }
 
