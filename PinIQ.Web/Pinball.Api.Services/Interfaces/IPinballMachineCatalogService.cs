@@ -23,4 +23,5 @@ public interface IPinballMachineCatalogService
     Task ResetCatalogAsync();
     Task<List<CatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids);
     Task RefreshCatalogSnapshotsAsync();
+    Task RefreshCatalogSnapshotAsync(int id);
 }

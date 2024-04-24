@@ -78,6 +78,20 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         await _dbContext.SaveChangesAsync();
     }
+
+    public async Task RefreshCatalogSnapshotAsync(int id)
+    {
+        var snapshotToUpdate = await _dbContext.CatalogSnapshots.FindAsync(id);
+
+        if (snapshotToUpdate == null)
+        {
+            throw new KeyNotFoundException($"The snapshot with id {id} was not found");
+        }
+
+        LogActionRefreshingCatalogSnapshotForId(snapshotToUpdate.Id);
+        _dbContext.Entry(snapshotToUpdate).State = EntityState.Modified;
+        await _dbContext.SaveChangesAsync();
+    }
     
     public async Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id)
     {
@@ -555,6 +569,9 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     [LoggerMessage(EventId = 1016, Level = LogLevel.Information,
         Message = "Refreshing all catalog snapshot cached data")]
     private partial void LogActionRefreshingCatalogSnapshots();
+    
+    [LoggerMessage(EventId = 1017, Level = LogLevel.Information, Message = "Refreshing catalog snapshot cached data for ID {catalogSnapshotId}")]
+    private partial void LogActionRefreshingCatalogSnapshotForId(int catalogSnapshotId);
 
     #endregion
 }

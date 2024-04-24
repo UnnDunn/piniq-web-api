@@ -17,7 +17,7 @@ namespace Pinball.Api.Controllers.Admin
 {
     [Route("api/admin/[controller]")]
     [ApiController]
-    public class PinballMachineCatalogSnapshotsController : ControllerBase
+    public partial class PinballMachineCatalogSnapshotsController : ControllerBase
     {
         private readonly IPinballMachineCatalogService _catalogService;
         private ILogger<PinballMachineCatalogSnapshotsController> _logger;
@@ -102,6 +102,24 @@ namespace Pinball.Api.Controllers.Admin
             }
             catch (Exception ex)
             {
+                LogErrorRefreshingCatalogSnapshots(ex);
+                return Problem(ex.Message, null, StatusCodes.Status500InternalServerError);
+            }
+        }
+
+        [HttpPost("Refresh/{id:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> RefreshCatalogSnapshot(int id)
+        {
+            try
+            {
+                await _catalogService.RefreshCatalogSnapshotAsync(id);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                LogErrorRefreshingCatalogSnapshots(ex);
                 return Problem(ex.Message, null, StatusCodes.Status500InternalServerError);
             }
         }
@@ -139,5 +157,13 @@ namespace Pinball.Api.Controllers.Admin
                 return BadRequest(ex.Message);
             }
         }
+
+        #region Logging
+
+        [LoggerMessage(EventId = 1501, Level = LogLevel.Error,
+            Message = "Failed to refresh catalog snapshot information")]
+        private partial void LogErrorRefreshingCatalogSnapshots(Exception ex);
+
+        #endregion
     }
 }
