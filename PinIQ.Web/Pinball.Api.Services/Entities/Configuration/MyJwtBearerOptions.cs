@@ -12,23 +12,26 @@ public record MyJwtBearerOptions
         this.SigningKeys = SigningKeys;
     }
 
+    public MyJwtBearerOptions()
+    {
+    }
+
     public IList<string> ValidAudiences { get; set; } = null!;
     public string ValidIssuer { get; set; } = null!;
     public IList<MyJwtBearerSigningKeyOptions> SigningKeys { get; set; } = null!;
-    
-    public int AccessTokenExpirationMinutes { get; set; }
-    
-    public int RefreshTokenExpirationDays { get; set; }
-    
-    public int RefreshTokenRenewalWindowDays { get; set; }
-    
-    public MyJwtBearerOptions() {}
 
-    public void Deconstruct(out IList<string> validAudiences, out string validIssuer, out IList<MyJwtBearerSigningKeyOptions> signingKeys)
+    public int AccessTokenExpirationMinutes { get; set; }
+
+    public int RefreshTokenExpirationDays { get; set; }
+
+    public int RefreshTokenRenewalWindowDays { get; set; }
+
+    public void Deconstruct(out IList<string> validAudiences, out string validIssuer,
+        out IList<MyJwtBearerSigningKeyOptions> signingKeys)
     {
-        validAudiences = this.ValidAudiences;
-        validIssuer = this.ValidIssuer;
-        signingKeys = this.SigningKeys;
+        validAudiences = ValidAudiences;
+        validIssuer = ValidIssuer;
+        signingKeys = SigningKeys;
     }
 }
 
@@ -42,18 +45,20 @@ public record MyJwtBearerSigningKeyOptions
         this.Length = Length;
     }
 
+    public MyJwtBearerSigningKeyOptions()
+    {
+    }
+
     public string Id { get; set; } = null!;
     public string Issuer { get; set; } = null!;
     public string Value { get; set; } = null!;
     public int Length { get; set; }
 
-    public MyJwtBearerSigningKeyOptions() {}
-    
     public void Deconstruct(out string id, out string issuer, out string value, out int length)
     {
-        id = this.Id;
-        issuer = this.Issuer;
-        value = this.Value;
-        length = this.Length;
+        id = Id;
+        issuer = Issuer;
+        value = Value;
+        length = Length;
     }
 }

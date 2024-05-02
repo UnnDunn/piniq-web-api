@@ -11,4 +11,3 @@ public record CatalogSnapshotPublishResult
     public int SnapshotId { get; set; }
     public DateTimeOffset Imported { get; set; }
 }
-

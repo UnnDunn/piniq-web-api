@@ -1,31 +1,29 @@
-﻿using EFCore.BulkExtensions;
-using Microsoft.EntityFrameworkCore;
-using Pinball.Api.Data;
-using Pinball.Api.Services.Entities.Exceptions;
-using Pinball.OpdbClient.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using EFCore.BulkExtensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pinball.Api.Data;
+using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Entities.Api.Responses.PinballCatalog;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
 using Pinball.Entities.Opdb;
 using Pinball.Entities.Opdb.Helpers;
+using Pinball.OpdbClient.Interfaces;
 using CatalogSnapshotPublishResult = Pinball.Api.Services.Entities.CatalogSnapshotPublishResult;
 
 namespace Pinball.Api.Services.Interfaces.Impl;
 
 public partial class PinballMachineCatalogService : IPinballMachineCatalogService
 {
-    private readonly IOpdbClient _opdbClient;
     private readonly PinballDbContext _dbContext;
     private readonly ILogger<PinballMachineCatalogService> _logger;
+    private readonly IOpdbClient _opdbClient;
 
     public PinballMachineCatalogService(IOpdbClient opdbClient,
         PinballDbContext dbContext,
@@ -39,7 +37,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     public async Task DeleteCatalogSnapshotAsync(int id)
     {
         LogActionDeletingCatalogById(id);
-        
+
         // get list of published catalogs, in descending order of publish date
         var currentPublishedCatalogId = await _dbContext.CatalogSnapshots
             .Where(s => s.Published != null)
@@ -51,16 +49,11 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // if the provided ID is first on the list, it maps to the currently-published snapshot,
         // which cannot be deleted
         if (currentPublishedCatalogId == id)
-        {
             throw new CatalogSnapshotException(id, "The current published snapshot cannot be deleted.");
-        }
 
         var snapshotToDelete = await _dbContext.CatalogSnapshots.FindAsync(id);
 
-        if (snapshotToDelete == null)
-        {
-            throw new KeyNotFoundException($"The snapshot with id {id} was not found");
-        }
+        if (snapshotToDelete == null) throw new KeyNotFoundException($"The snapshot with id {id} was not found");
 
         _dbContext.CatalogSnapshots.Remove(snapshotToDelete);
         await _dbContext.SaveChangesAsync();
@@ -71,10 +64,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     {
         LogActionRefreshingCatalogSnapshots();
         var snapshots = await _dbContext.CatalogSnapshots.ToListAsync();
-        foreach (var snapshot in snapshots)
-        {
-            _dbContext.Entry(snapshot).State = EntityState.Modified;
-        }
+        foreach (var snapshot in snapshots) _dbContext.Entry(snapshot).State = EntityState.Modified;
 
         await _dbContext.SaveChangesAsync();
     }
@@ -83,16 +73,13 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     {
         var snapshotToUpdate = await _dbContext.CatalogSnapshots.FindAsync(id);
 
-        if (snapshotToUpdate == null)
-        {
-            throw new KeyNotFoundException($"The snapshot with id {id} was not found");
-        }
+        if (snapshotToUpdate == null) throw new KeyNotFoundException($"The snapshot with id {id} was not found");
 
         LogActionRefreshingCatalogSnapshotForId(snapshotToUpdate.Id);
         _dbContext.Entry(snapshotToUpdate).State = EntityState.Modified;
         await _dbContext.SaveChangesAsync();
     }
-    
+
     public async Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id)
     {
         LogActionGettingCatalogSnapshotById(id);
@@ -177,12 +164,10 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // check database to see when the last snapshot was retrieved
         var latestSnapshot = await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).FirstOrDefaultAsync();
 
-        if(latestSnapshot != null)
-        {
-
-                if (DateTimeOffset.Now - latestSnapshot.Imported < TimeSpan.FromHours(1))
-                    throw new OpdbException($"The newest snapshot cannot be retrieved right now. Please wait until {latestSnapshot.Imported.AddHours(1)}.");
-        }
+        if (latestSnapshot != null)
+            if (DateTimeOffset.Now - latestSnapshot.Imported < TimeSpan.FromHours(1))
+                throw new OpdbException(
+                    $"The newest snapshot cannot be retrieved right now. Please wait until {latestSnapshot.Imported.AddHours(1)}.");
 
         // get the latest snapshot from Opdb
         var exportMachinesResponse = await _opdbClient.ExportAsync();
@@ -193,7 +178,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         {
             Imported = DateTimeOffset.Now,
             MachineJsonResponse = exportMachinesResponse.JsonResponse,
-            MachineGroupJsonResponse = exportMachineGroupsResponse.JsonResponse,
+            MachineGroupJsonResponse = exportMachineGroupsResponse.JsonResponse
         };
 
         _dbContext.CatalogSnapshots.Add(catalogExportEntry);
@@ -254,7 +239,8 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
         var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
         var keywordsTotal = await _dbContext.PinballKeywords.CountAsync();
-        LogDebugCatalogSnapshotPublishCounts(latestSnapshot.Id, machineTotal, machineGroupsTotal, manufacturersTotal, keywordsTotal);
+        LogDebugCatalogSnapshotPublishCounts(latestSnapshot.Id, machineTotal, machineGroupsTotal, manufacturersTotal,
+            keywordsTotal);
 
         var result = new CatalogSnapshotPublishResult
         {
@@ -267,6 +253,143 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         };
 
         return result;
+    }
+
+    public async Task<IEnumerable<CatalogSnapshot>> GetAllCatalogSnapshotsAsync()
+    {
+        var result = await _dbContext
+            .CatalogSnapshots
+            .AsNoTracking()
+            .Select(o => new CatalogSnapshot
+            {
+                Id = o.Id,
+                Imported = o.Imported,
+                Published = o.Published,
+                MachineCount = o.MachineCount,
+                MachineGroupCount = o.MachineGroupCount,
+                ManufacturerCount = o.ManufacturerCount,
+                KeywordCount = o.KeywordCount,
+                NewestMachine = o.NewestMachine,
+                Created = o.Created,
+                Updated = o.Updated
+            })
+            .ToListAsync();
+        return result;
+    }
+
+    public async Task ResetCatalogAsync()
+    {
+        LogActionResettingCatalog();
+        // unpublish catalogs
+        var catalogSnapshots = await _dbContext.CatalogSnapshots.ToListAsync();
+
+        foreach (var snapshot in catalogSnapshots)
+        {
+            LogProgressMarkingSnapshotUnpublished(snapshot.Id);
+            snapshot.Published = null;
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        // delete keywords
+        await _dbContext.PinballKeywords.ExecuteDeleteAsync();
+
+        // delete features
+        await _dbContext.PinballFeatures.ExecuteDeleteAsync();
+
+        // delete pinball machines
+        await _dbContext.PinballMachines.ExecuteDeleteAsync();
+
+        // delete manufacturers
+        await _dbContext.PinballManufacturers.ExecuteDeleteAsync();
+
+        await _dbContext.SaveChangesAsync();
+    }
+
+    public async Task<int> UpdateChangelogsAsync()
+    {
+        // get most recent changelog date
+        var latestChangelog = await _dbContext.OpdbChangelogs.OrderByDescending(c => c.Date).FirstOrDefaultAsync();
+
+        var response = await _opdbClient.GetChangelogAsync(latestChangelog?.Date);
+
+        var jsonOptions = new JsonSerializerOptions();
+        jsonOptions.Converters.Add(new NullableDateTimeConverterWithParseFallback());
+        jsonOptions.Converters.Add(new ChangelogActionConverter());
+        var newChangelogs = JsonSerializer.Deserialize<IEnumerable<Changelog>>(response.JsonResponse, jsonOptions);
+
+        if (newChangelogs is null) return 0;
+
+        // get all existing changelogs 
+        var savedChangelogs = await _dbContext.OpdbChangelogs.ToDictionaryAsync(cl => cl.Id);
+
+        foreach (var newChangelog in newChangelogs)
+        {
+            // get existing changelog
+
+            savedChangelogs.TryGetValue(newChangelog.ChangelogId, out var savedChangelog);
+            if (savedChangelog != null)
+            {
+                savedChangelog.OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty;
+                savedChangelog.Action = (OpdbChangelogAction)(int)newChangelog.Action;
+                savedChangelog.NewOpdbId = newChangelog.OpdbIdReplacement?.ToString();
+                savedChangelog.Date = newChangelog.CreatedAt;
+            }
+            else
+            {
+                var createdChangelog = new OpdbChangelog
+                {
+                    Id = newChangelog.ChangelogId,
+                    OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty,
+                    Action = (OpdbChangelogAction)(int)newChangelog.Action,
+                    NewOpdbId = newChangelog.OpdbIdReplacement?.ToString(),
+                    Date = newChangelog.CreatedAt
+                };
+                _dbContext.OpdbChangelogs.Add(createdChangelog);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        return await _dbContext.OpdbChangelogs.CountAsync();
+    }
+
+    public async Task<IEnumerable<OpdbChangelog>> GetChangelogsAsync()
+    {
+        var result = await _dbContext.OpdbChangelogs.AsNoTracking().ToListAsync();
+        return result;
+    }
+
+    public async Task<Dictionary<string, int>> GetAllMachineTypesAsync()
+    {
+        var latestSnapshot = await _dbContext.CatalogSnapshots.AsNoTracking().OrderByDescending(s => s.Created)
+            .FirstOrDefaultAsync();
+
+        if (latestSnapshot == null) throw new InvalidOperationException("No snapshots exist to get machine types for");
+
+        var machines = latestSnapshot.Machines;
+
+        if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
+        var machineTypeGroups = machines.GroupBy(m => m.MachineType)
+            .ToDictionary(g => g.Key?.ToString() ?? "Unknown", g => g.Count());
+
+        return machineTypeGroups;
+    }
+
+    public async Task<Dictionary<string, int>> GetAllDisplayTypesAsync()
+    {
+        var latestSnapshot = await _dbContext.CatalogSnapshots.AsNoTracking().OrderByDescending(s => s.Created)
+            .FirstOrDefaultAsync();
+
+        if (latestSnapshot == null) throw new InvalidOperationException("No snapshots exist to get display types for");
+
+        var machines = latestSnapshot.Machines;
+
+        if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
+        var displayTypeGroups = machines.GroupBy(m => m.Display ?? "null")
+            .ToDictionary(g => g.Key.ToString(), g => g.Count());
+
+        return displayTypeGroups;
     }
 
     private async Task LoadMachineGroupsAsync(IEnumerable<MachineGroup> machineGroups)
@@ -302,17 +425,11 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             };
         });
 
-        foreach(var newManufacturer in newManufacturers)
-        {
+        foreach (var newManufacturer in newManufacturers)
             if (savedManufacturers.TryGetValue(newManufacturer.Id, out var savedManufacturer))
-            {
                 _dbContext.Entry(savedManufacturer).CurrentValues.SetValues(newManufacturer);
-            } 
             else
-            {
                 _dbContext.Add(newManufacturer);
-            }
-        }
 
         await _dbContext.SaveChangesAsync();
     }
@@ -358,7 +475,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         var keywordMappings = new List<PinballMachineKeywordMapping>();
 
-        foreach(var machine in machines)
+        foreach (var machine in machines)
         {
             var mappings = machine.Keywords?.Select(kw => new PinballMachineKeywordMapping
             {
@@ -372,151 +489,11 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await _dbContext.BulkInsertOrUpdateAsync(keywordMappings);
     }
 
-    public async Task<IEnumerable<CatalogSnapshot>> GetAllCatalogSnapshotsAsync()
-    {
-        var result = await _dbContext
-            .CatalogSnapshots
-            .AsNoTracking()
-            .Select(o => new CatalogSnapshot
-            {
-                Id = o.Id,
-                Imported = o.Imported,
-                Published = o.Published,
-                MachineCount = o.MachineCount,
-                MachineGroupCount = o.MachineGroupCount,
-                ManufacturerCount = o.ManufacturerCount,
-                KeywordCount = o.KeywordCount,
-                NewestMachine = o.NewestMachine,
-                Created = o.Created,
-                Updated = o.Updated
-            })
-            .ToListAsync();
-        return result;
-    }
-
-    public async Task ResetCatalogAsync()
-    {
-        LogActionResettingCatalog();
-        // unpublish catalogs
-        var catalogSnapshots = await _dbContext.CatalogSnapshots.ToListAsync();
-
-        foreach(var snapshot in catalogSnapshots)
-        {
-            LogProgressMarkingSnapshotUnpublished(snapshot.Id);
-            snapshot.Published = null;
-        }
-
-        await _dbContext.SaveChangesAsync();
-
-        // delete keywords
-        await _dbContext.PinballKeywords.ExecuteDeleteAsync();
-
-        // delete features
-        await _dbContext.PinballFeatures.ExecuteDeleteAsync();
-
-        // delete pinball machines
-        await _dbContext.PinballMachines.ExecuteDeleteAsync();
-
-        // delete manufacturers
-        await _dbContext.PinballManufacturers.ExecuteDeleteAsync();
-
-        await _dbContext.SaveChangesAsync();
-    }
-
-    public async Task<int> UpdateChangelogsAsync()
-    {
-        
-        // get most recent changelog date
-        var latestChangelog = await _dbContext.OpdbChangelogs.OrderByDescending(c => c.Date).FirstOrDefaultAsync();
-
-        var response = await _opdbClient.GetChangelogAsync(latestChangelog?.Date);
-
-        var jsonOptions = new JsonSerializerOptions();
-        jsonOptions.Converters.Add(new NullableDateTimeConverterWithParseFallback());
-        jsonOptions.Converters.Add(new ChangelogActionConverter());
-        var newChangelogs = JsonSerializer.Deserialize<IEnumerable<Changelog>>(response.JsonResponse, jsonOptions);
-
-        if (newChangelogs is null) return 0;
-
-        // get all existing changelogs 
-        var savedChangelogs = await _dbContext.OpdbChangelogs.ToDictionaryAsync(cl => cl.Id);
-
-        foreach (var newChangelog in newChangelogs)
-        {
-            // get existing changelog
-
-            savedChangelogs.TryGetValue(newChangelog.ChangelogId, out var savedChangelog);
-            if(savedChangelog != null)
-            {
-                savedChangelog.OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty;
-                savedChangelog.Action = (OpdbChangelogAction)(int)newChangelog.Action;
-                savedChangelog.NewOpdbId = newChangelog.OpdbIdReplacement?.ToString();
-                savedChangelog.Date = newChangelog.CreatedAt;
-            } 
-            else
-            {
-                var createdChangelog = new OpdbChangelog
-                {
-                    Id = newChangelog.ChangelogId,
-                    OpdbId = newChangelog.OpdbIdDeleted?.ToString() ?? string.Empty,
-                    Action = (OpdbChangelogAction)(int)newChangelog.Action,
-                    NewOpdbId = newChangelog.OpdbIdReplacement?.ToString(),
-                    Date = newChangelog.CreatedAt
-                };
-                _dbContext.OpdbChangelogs.Add(createdChangelog);
-            }
-        }
-
-        await _dbContext.SaveChangesAsync();
-
-        return await _dbContext.OpdbChangelogs.CountAsync();
-    }
-
-    public async Task<IEnumerable<OpdbChangelog>> GetChangelogsAsync()
-    {
-        var result = await _dbContext.OpdbChangelogs.AsNoTracking().ToListAsync();
-        return result;
-    }
-
-    public async Task<Dictionary<string, int>> GetAllMachineTypesAsync()
-    {
-        var latestSnapshot = await _dbContext.CatalogSnapshots.AsNoTracking().OrderByDescending(s => s.Created).FirstOrDefaultAsync();
-
-        if (latestSnapshot == null)
-        {
-            throw new InvalidOperationException("No snapshots exist to get machine types for");
-        }
-
-        var machines = latestSnapshot.Machines;
-
-        if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
-        var machineTypeGroups = machines.GroupBy(m => m.MachineType).ToDictionary(g => g.Key?.ToString() ?? "Unknown", g => g.Count());
-
-        return machineTypeGroups;
-    }
-
-    public async Task<Dictionary<string, int>> GetAllDisplayTypesAsync()
-    {
-        var latestSnapshot = await _dbContext.CatalogSnapshots.AsNoTracking().OrderByDescending(s => s.Created).FirstOrDefaultAsync();
-
-        if (latestSnapshot == null)
-        {
-            throw new InvalidOperationException("No snapshots exist to get display types for");
-        }
-
-        var machines = latestSnapshot.Machines;
-
-        if (machines is null) throw new Exception("Machine snapshot JSON could not be parsed");
-        var displayTypeGroups = machines.GroupBy(m => m.Display ?? "null").ToDictionary(g => g.Key.ToString(), g => g.Count());
-
-        return displayTypeGroups;
-    }
-    
     #region Logging
-    
+
     // Methods for writing source-generated logging statements
     // All logging statements in this service must have event IDs "10xx"
-    
+
     [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = "Deleting Catalog Snapshot with ID {id}.")]
     private partial void LogActionDeletingCatalogById(int id);
 
@@ -532,16 +509,21 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     [LoggerMessage(EventId = 1005, Level = LogLevel.Information, Message = "Publishing latest Catalog Snapshot.")]
     private partial void LogActionPublishCatalogSnapshot();
 
-    [LoggerMessage(EventId = 1006, Level = LogLevel.Information, Message = "Could not publish latest Catalog Snapshot because no Catalog Snapshots were found.")]
+    [LoggerMessage(EventId = 1006, Level = LogLevel.Information,
+        Message = "Could not publish latest Catalog Snapshot because no Catalog Snapshots were found.")]
     private partial void LogIssueNoCatalogSnapshotsFound();
 
-    [LoggerMessage(EventId = 1007, Level = LogLevel.Information, Message = "Latest Catalog Snapshot found with id {id}, imported on {importedDate}.")]
+    [LoggerMessage(EventId = 1007, Level = LogLevel.Information,
+        Message = "Latest Catalog Snapshot found with id {id}, imported on {importedDate}.")]
     private partial void LogProcessLatestCatalogSnapshotIdentified(int id, DateTimeOffset importedDate);
 
-    [LoggerMessage(EventId = 1008, Level = LogLevel.Information, Message = "Could not publish latest Catalog Snapshot with id {id} because it was already published on {publishedDate}")]
+    [LoggerMessage(EventId = 1008, Level = LogLevel.Information,
+        Message =
+            "Could not publish latest Catalog Snapshot with id {id} because it was already published on {publishedDate}")]
     private partial void LogIssueCatalogSnapshotAlreadyPublished(int id, DateTimeOffset publishedDate);
 
-    [LoggerMessage(EventId = 1009, Level = LogLevel.Information, Message = "Marking Catalog Snapshot {id} as Published on {publishedDate}.")]
+    [LoggerMessage(EventId = 1009, Level = LogLevel.Information,
+        Message = "Marking Catalog Snapshot {id} as Published on {publishedDate}.")]
     private partial void LogProcessMarkingCatalogSnapshotAsPublished(int id, DateTimeOffset publishedDate);
 
     [LoggerMessage(EventId = 1010,
@@ -551,7 +533,8 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     private partial void LogDebugCatalogSnapshotPublishCounts(int id, int machineTotal, int machineGroupsTotal,
         int manufacturersTotal, int keywordsTotal);
 
-    [LoggerMessage(EventId = 1011, Level = LogLevel.Information, Message = "Loading {machineGroupCount} machine groups to active catalog.")]
+    [LoggerMessage(EventId = 1011, Level = LogLevel.Information,
+        Message = "Loading {machineGroupCount} machine groups to active catalog.")]
     private partial void LogProcessLoadingMachineGroupsToCatalog(int machineGroupCount);
 
     [LoggerMessage(EventId = 1012, Level = LogLevel.Information, Message = "Loading manufacturers to active Catalog.")]
@@ -562,15 +545,16 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
     [LoggerMessage(EventId = 1014, Level = LogLevel.Debug, Message = "Marking snapshot {id} as unpublished.")]
     private partial void LogProgressMarkingSnapshotUnpublished(int id);
-    
+
     [LoggerMessage(EventId = 1015, Level = LogLevel.Debug, Message = "Updating changelogs from OPDB.")]
     private partial void LogActionUpdatingChangelogs();
 
     [LoggerMessage(EventId = 1016, Level = LogLevel.Information,
         Message = "Refreshing all catalog snapshot cached data")]
     private partial void LogActionRefreshingCatalogSnapshots();
-    
-    [LoggerMessage(EventId = 1017, Level = LogLevel.Information, Message = "Refreshing catalog snapshot cached data for ID {catalogSnapshotId}")]
+
+    [LoggerMessage(EventId = 1017, Level = LogLevel.Information,
+        Message = "Refreshing catalog snapshot cached data for ID {catalogSnapshotId}")]
     private partial void LogActionRefreshingCatalogSnapshotForId(int catalogSnapshotId);
 
     #endregion

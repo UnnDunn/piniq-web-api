@@ -20,7 +20,7 @@ public partial class LoginService
     private readonly ILogger<LoginService> _logger;
     private readonly MyJwtBearerOptions _myJwtOptions;
 
-    
+
     public LoginService(ILogger<LoginService> logger, IOptions<MyJwtBearerOptions> jwtOptions)
     {
         _logger = logger;
@@ -32,15 +32,12 @@ public partial class LoginService
         LogActionGeneratingIdToken(identity);
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.OriginalIdentifier, identity.Identifier),
-            new Claim(ClaimTypes.OriginalIssuer, identity.Provider.ToString())
+            new(ClaimTypes.OriginalIdentifier, identity.Identifier),
+            new(ClaimTypes.OriginalIssuer, identity.Provider.ToString())
         };
 
-        if (additionalClaims is not null)
-        {
-            claims.AddRange(additionalClaims);
-        }
-        
+        if (additionalClaims is not null) claims.AddRange(additionalClaims);
+
         // add boilerplate claims
         claims.AddRange(
             _myJwtOptions
@@ -53,7 +50,7 @@ public partial class LoginService
         var idTokenSigningKey = _myJwtOptions.SigningKeys.Single(s => s.Issuer == _myJwtOptions.ValidIssuer);
         var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(idTokenSigningKey.Value));
         var signInCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(issuer: _myJwtOptions.ValidIssuer,
+        var token = new JwtSecurityToken(_myJwtOptions.ValidIssuer,
             claims: claims, expires: expiry, signingCredentials: signInCredentials, notBefore: timeStamp);
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
@@ -67,15 +64,12 @@ public partial class LoginService
         LogActionGeneratingRefreshToken(identity, originalLoginDate);
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.OriginalIdentifier, identity.Identifier),
-            new Claim(ClaimTypes.OriginalIssuer, identity.Provider.ToString()),
-            new Claim(ClaimTypes.OriginalLoginDate, originalLoginDate.ToString("u"))
+            new(ClaimTypes.OriginalIdentifier, identity.Identifier),
+            new(ClaimTypes.OriginalIssuer, identity.Provider.ToString()),
+            new(ClaimTypes.OriginalLoginDate, originalLoginDate.ToString("u"))
         };
 
-        if (additionalClaims is not null)
-        {
-            claims.AddRange(additionalClaims);
-        }
+        if (additionalClaims is not null) claims.AddRange(additionalClaims);
 
         // add boilerplate claims
         claims.AddRange(
@@ -88,8 +82,9 @@ public partial class LoginService
         var tokenSigningKey = _myJwtOptions.SigningKeys.Single(s => s.Issuer == _myJwtOptions.ValidIssuer);
         var secretKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenSigningKey.Value));
         var signInCredentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(issuer: _myJwtOptions.ValidIssuer + "_refresh",
-            claims: claims, expires: DateTime.Now.AddDays(_myJwtOptions.RefreshTokenExpirationDays), signingCredentials: signInCredentials, notBefore: timeStamp);
+        var token = new JwtSecurityToken(_myJwtOptions.ValidIssuer + "_refresh",
+            claims: claims, expires: DateTime.Now.AddDays(_myJwtOptions.RefreshTokenExpirationDays),
+            signingCredentials: signInCredentials, notBefore: timeStamp);
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
         var result = new TokenGenerationResult(identity, null, tokenString, expiry);
@@ -100,7 +95,7 @@ public partial class LoginService
     public async Task<IDictionary<string, object>> ReadRefreshToken(string refreshToken)
     {
         var tokenSigningKey = _myJwtOptions.SigningKeys.Single(s => s.Issuer == _myJwtOptions.ValidIssuer);
-        var validationOptions = new TokenValidationParameters()
+        var validationOptions = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
@@ -118,24 +113,28 @@ public partial class LoginService
             LogExceptionRefreshTokenValidation(tokenValidationResult.Exception);
             throw tokenValidationResult.Exception;
         }
-        
+
         var claimCount = tokenValidationResult.Claims.Count;
         LogSuccessRefreshTokenValidation(claimCount);
         return tokenValidationResult.Claims;
     }
-    
+
     #region Logging
 
     // Methods for writing source-generated logging statements
     // All logging statements in this service must have event IDs "12xx"
 
-    [LoggerMessage(EventId = 1201, Level = LogLevel.Information, Message = "Generating ID token for supplied {ProviderIdentity}")]
+    [LoggerMessage(EventId = 1201, Level = LogLevel.Information,
+        Message = "Generating ID token for supplied {ProviderIdentity}")]
     public partial void LogActionGeneratingIdToken(ProviderIdentity providerIdentity);
 
-    [LoggerMessage(EventId = 1202, Level = LogLevel.Information, Message = "Generating refresh token for supplied {ProviderIdentity} with original login date {originalLoginDate}")]
+    [LoggerMessage(EventId = 1202, Level = LogLevel.Information,
+        Message =
+            "Generating refresh token for supplied {ProviderIdentity} with original login date {originalLoginDate}")]
     public partial void LogActionGeneratingRefreshToken(ProviderIdentity providerIdentity, DateTime originalLoginDate);
 
-    [LoggerMessage(EventId = 1203, Level = LogLevel.Information, Message = "Refresh token validated successfully; {claimCount} claims found")]
+    [LoggerMessage(EventId = 1203, Level = LogLevel.Information,
+        Message = "Refresh token validated successfully; {claimCount} claims found")]
     public partial void LogSuccessRefreshTokenValidation(int claimCount);
 
     [LoggerMessage(EventId = 1204, Level = LogLevel.Error, Message = "Refresh token validation failed")]

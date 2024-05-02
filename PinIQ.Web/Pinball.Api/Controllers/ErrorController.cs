@@ -5,7 +5,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Pinball.Api.Controllers;
 
-[ApiController, AllowAnonymous]
+[ApiController]
+[AllowAnonymous]
 public class ErrorController : ControllerBase
 {
     private readonly ILogger<ErrorController> _logger;
@@ -15,11 +16,12 @@ public class ErrorController : ControllerBase
         _logger = logger;
     }
 
-    [Route("/error"), ApiExplorerSettings(IgnoreApi = true)]
+    [Route("/error")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult HandleError()
     {
         var exceptionHandlerFeature = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
-        
+
         _logger.LogError(exceptionHandlerFeature?.Error, "Error occurred handling request to path {path}",
             exceptionHandlerFeature?.Path);
 

@@ -4,7 +4,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Pinball.Api.Controllers.Test;
 
-[Route("api/test/[controller]"), ApiController, ApiExplorerSettings(IgnoreApi = true)]
+[Route("api/test/[controller]")]
+[ApiController]
+[ApiExplorerSettings(IgnoreApi = true)]
 public partial class OauthTestController : ControllerBase
 {
     private readonly ILogger<OauthTestController> _logger;
@@ -14,7 +16,8 @@ public partial class OauthTestController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet, Route("userclaims")]
+    [HttpGet]
+    [Route("userclaims")]
     public IActionResult GetUserClaimsAsync()
     {
         LogActionGetClaims();
@@ -25,9 +28,9 @@ public partial class OauthTestController : ControllerBase
 
         return Ok(claims);
     }
-    
+
     #region Logging
-    
+
     // Methods for writing source-generated logging statements
     // All logging statements in this service must have event IDs "12xx"
 

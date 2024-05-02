@@ -13,5 +13,8 @@ public enum IdentityProvider
 
 public record ProviderIdentity(string Identifier, IdentityProvider Provider);
 
-public record TokenGenerationResult(ProviderIdentity Identity, string? AccessToken = null, string? RefreshToken = null,
+public record TokenGenerationResult(
+    ProviderIdentity Identity,
+    string? AccessToken = null,
+    string? RefreshToken = null,
     DateTimeOffset? Expiry = null);
