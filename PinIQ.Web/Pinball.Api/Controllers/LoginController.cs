@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Apple;
 using Microsoft.AspNetCore.Authentication;
@@ -17,18 +18,20 @@ using Pinball.Api.Entities.Configuration;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Entities.Login;
 using Pinball.Api.Services.Interfaces.Impl;
-using Pinball.Entities.Api.Responses.Authentication;
 using LoginTokenResponse = Pinball.Api.Entities.Responses.LoginTokenResponse;
 
 namespace Pinball.Api.Controllers;
 
-[ApiController, Route("[controller]"), AllowAnonymous]
+[ApiController]
+[Route("[controller]")]
+[AllowAnonymous]
 public partial class LoginController : ControllerBase
 {
+    private const string CallbackScheme = "piniq";
     private readonly DeveloperOptions _developerOptions;
-    private readonly MyJwtBearerOptions _myJwtOptions;
-    private readonly LoginService _loginService;
     private readonly ILogger<LoginController> _logger;
+    private readonly LoginService _loginService;
+    private readonly MyJwtBearerOptions _myJwtOptions;
 
     public LoginController(LoginService loginService,
         IOptions<DeveloperOptions> developerOptions,
@@ -41,16 +44,16 @@ public partial class LoginController : ControllerBase
         _myJwtOptions = myJwtOptions.Value;
     }
 
-    private const string CallbackScheme = "piniq";
-
-    [HttpGet("{scheme}"), AllowAnonymous]
+    [HttpGet("{scheme}")]
+    [AllowAnonymous]
     public async Task Login([FromRoute] string scheme)
     {
-        var schemes = new List<string> { 
+        var schemes = new List<string>
+        {
             AppleAuthenticationDefaults.AuthenticationScheme,
-            CookieAuthenticationDefaults.AuthenticationScheme, 
-            GoogleDefaults.AuthenticationScheme, 
-            JwtBearerDefaults.AuthenticationScheme 
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            GoogleDefaults.AuthenticationScheme,
+            JwtBearerDefaults.AuthenticationScheme
         };
 
         var canonicalScheme =
@@ -63,7 +66,7 @@ public partial class LoginController : ControllerBase
         var auth = await Request.HttpContext.AuthenticateAsync(canonicalScheme);
 
         LogAuthResult(auth.Succeeded, auth.Properties?.Items);
-        
+
         if (!auth.Succeeded
             || auth?.Principal is null
             || !auth.Principal.Identities.Any(id => id.IsAuthenticated))
@@ -85,7 +88,8 @@ public partial class LoginController : ControllerBase
                 var claimsDictionary = claims?.Select(c => new KeyValuePair<string, string>(c.Type, c.Value));
                 LogRetrievedClaims(claimsDictionary);
             }
-            var email = claims?.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
+
+            var email = claims?.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
 
             if (email is not null)
             {
@@ -93,7 +97,7 @@ public partial class LoginController : ControllerBase
                 var accessToken = _loginService.BuildIdToken(providerId);
                 var refreshTokenResult = _loginService.BuildRefreshToken(providerId, DateTime.UtcNow);
 
-                var qs = new Dictionary<string, string>()
+                var qs = new Dictionary<string, string>
                 {
                     { "access_token", accessToken.AccessToken ?? string.Empty },
                     { "refresh_token", refreshTokenResult.RefreshToken ?? string.Empty },
@@ -124,7 +128,8 @@ public partial class LoginController : ControllerBase
     [LoggerMessage(EventId = 1304, Level = LogLevel.Debug, Message = "Redirecting to {returnUrl}")]
     private partial void LogReturnUrl(string returnUrl);
 
-    [LoggerMessage(EventId = 1303, Level = LogLevel.Debug, Message = "Login Success: {authSucceeded}, Properties: {propertiesItems}")]
+    [LoggerMessage(EventId = 1303, Level = LogLevel.Debug,
+        Message = "Login Success: {authSucceeded}, Properties: {propertiesItems}")]
     private partial void LogAuthResult(bool authSucceeded, IDictionary<string, string?>? propertiesItems);
 
     [LoggerMessage(EventId = 1302, Level = LogLevel.Debug, Message = "Attempting login using scheme {canonicalScheme}")]
@@ -133,20 +138,21 @@ public partial class LoginController : ControllerBase
     [LoggerMessage(EventId = 1301, Level = LogLevel.Debug, Message = "Claims retrieved: {claimsDictionary}")]
     private partial void LogRetrievedClaims(IEnumerable<KeyValuePair<string, string>>? claimsDictionary);
 
-    [HttpGet("refresh"), AllowAnonymous]
+    [HttpGet("refresh")]
+    [AllowAnonymous]
     public async Task<IActionResult> Refresh([FromQuery] string token)
     {
         var claims = await _loginService.ReadRefreshToken(token);
 
-        if (!claims.TryGetValue(ClaimTypes.OriginalIdentifier, out var originalIdentifier)
-            || !claims.TryGetValue(ClaimTypes.OriginalIssuer, out var originalIssuer))
-        {
+        if (!claims.TryGetValue(Pinball.Entities.Api.Responses.Authentication.ClaimTypes.OriginalIdentifier,
+                out var originalIdentifier)
+            || !claims.TryGetValue(Pinball.Entities.Api.Responses.Authentication.ClaimTypes.OriginalIssuer,
+                out var originalIssuer))
             return BadRequest();
-        }
 
         if (!Enum.TryParse<IdentityProvider>(originalIssuer.ToString(), out var originalIssuerEnum))
             return BadRequest();
-        
+
         var providerId = new ProviderIdentity(originalIdentifier.ToString()!, originalIssuerEnum);
         var accessToken = _loginService.BuildIdToken(providerId).AccessToken ?? string.Empty;
 
@@ -154,12 +160,14 @@ public partial class LoginController : ControllerBase
         if (claims.TryGetValue(JwtRegisteredClaimNames.Exp, out var expirationDateUnix))
         {
             var expirationDateOffset = DateTimeOffset.FromUnixTimeSeconds((long)expirationDateUnix);
-            var minExpirationDate = new DateTimeOffset(DateTime.UtcNow.AddDays(_myJwtOptions.RefreshTokenRenewalWindowDays));
+            var minExpirationDate =
+                new DateTimeOffset(DateTime.UtcNow.AddDays(_myJwtOptions.RefreshTokenRenewalWindowDays));
 
             if (expirationDateOffset < minExpirationDate)
             {
                 var originalLoginDate =
-                    claims.TryGetValue(ClaimTypes.OriginalLoginDate, out var old)
+                    claims.TryGetValue(Pinball.Entities.Api.Responses.Authentication.ClaimTypes.OriginalLoginDate,
+                        out var old)
                         ? DateTime.Parse(old.ToString()!)
                         : DateTime.UtcNow;
 
@@ -172,13 +180,12 @@ public partial class LoginController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("testtoken"), ApiExplorerSettings(IgnoreApi = true), AllowAnonymous]
+    [HttpGet("testtoken")]
+    [ApiExplorerSettings(IgnoreApi = true)]
+    [AllowAnonymous]
     public IActionResult TestToken([FromQuery] string testKey)
     {
-        if (_developerOptions.LoginTestKey is null || _developerOptions.LoginTestKey != testKey)
-        {
-            return Forbid();
-        }
+        if (_developerOptions.LoginTestKey is null || _developerOptions.LoginTestKey != testKey) return Forbid();
 
         var testId = new ProviderIdentity("TestID", IdentityProvider.Self);
 
@@ -191,7 +198,8 @@ public partial class LoginController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("/throwException"), ApiExplorerSettings(IgnoreApi = true)]
+    [HttpGet("/throwException")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult ThrowException()
     {
         throw new Exception($"Exception thrown at {DateTime.UtcNow:g}");

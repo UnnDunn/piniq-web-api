@@ -1,18 +1,19 @@
-﻿using Pinball.Api.Services.Entities;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Pinball.Entities.Api.Responses.PinballCatalog;
 using Pinball.Entities.Data.Opdb;
+using CatalogSnapshotPublishResult = Pinball.Api.Services.Entities.CatalogSnapshotPublishResult;
 
 namespace Pinball.Api.Services.Interfaces;
 
 public interface IPinballMachineCatalogService
 {
-    Task<OpdbCatalogSnapshot> ImportNewCatalogSnapshotAsync();
-    Task<OpdbCatalogSnapshot?> GetCatalogSnapshotAsync(int id);
-    Task<OpdbCatalogSnapshot?> GetPublishedCatalogSnapshotAsync();
+    Task<CatalogSnapshot> ImportNewCatalogSnapshotAsync();
+    Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id);
+    Task<CatalogSnapshot?> GetPublishedCatalogSnapshotAsync();
     Task<CatalogSnapshotPublishResult> PublishCatalogSnapshotAsync();
     Task DeleteCatalogSnapshotAsync(int id);
-    Task<IEnumerable<OpdbCatalogSnapshot>> GetAllCatalogSnapshotsAsync();
+    Task<IEnumerable<CatalogSnapshot>> GetAllCatalogSnapshotsAsync();
 
     Task<int> UpdateChangelogsAsync();
     Task<IEnumerable<OpdbChangelog>> GetChangelogsAsync();
@@ -20,5 +21,7 @@ public interface IPinballMachineCatalogService
     Task<Dictionary<string, int>> GetAllMachineTypesAsync();
     Task<Dictionary<string, int>> GetAllDisplayTypesAsync();
     Task ResetCatalogAsync();
-    Task<List<OpdbCatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids);
+    Task<List<CatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids);
+    Task RefreshCatalogSnapshotsAsync();
+    Task RefreshCatalogSnapshotAsync(int id);
 }

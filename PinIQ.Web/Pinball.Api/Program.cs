@@ -15,13 +15,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using Pinball.Api.Data;
 using Pinball.Api.Entities.Configuration;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Api.Services.Interfaces.Impl;
 using Pinball.Entities.Api.Responses;
-using Pinball.OpdbClient.Entities;
+using Pinball.Entities.Opdb;
 using Pinball.OpdbClient.Interfaces;
 using Serilog;
 using Serilog.Sinks.ApplicationInsights.TelemetryConverters;
@@ -37,16 +38,14 @@ public partial class Program
 
         var loggerConfiguration = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration);
-        
+
         // Azure KeyVault configuration
         var azKeyVaultConnectionString = builder.Configuration.GetConnectionString("AzKeyVault");
 
         if (!string.IsNullOrEmpty(azKeyVaultConnectionString))
-        {
             // found a key vault connection string, so configure azure key-vault
             builder.Configuration.AddAzureKeyVault(new Uri(azKeyVaultConnectionString), new DefaultAzureCredential());
-        }
-        
+
         // ApplicationInsights options
         var appInsightsOptions = builder.Configuration.GetSection("Logging:ApplicationInsights")
             .Get<ApplicationInsightsOptions>();
@@ -54,22 +53,21 @@ public partial class Program
         if ((appInsightsOptions?.IsEnabled ?? false) && !string.IsNullOrEmpty(appInsightsConnectionString))
         {
             // configure application insights here
-            var telemetryConfig = new TelemetryConfiguration()
-                { ConnectionString = appInsightsConnectionString };
+            var telemetryConfig = new TelemetryConfiguration { ConnectionString = appInsightsConnectionString };
             loggerConfiguration.WriteTo.ApplicationInsights(telemetryConfig, new TraceTelemetryConverter());
         }
-        
+
         Log.Logger = loggerConfiguration.CreateLogger();
         builder.Host.UseSerilog();
 
         builder.Services.AddHttpClient();
-			
+
         builder.Services.AddDbContext<PinballDbContext>(options =>
         {
             options.UseSqlServer(builder.Configuration.GetConnectionString("PinballDbContext"));
         });
-			
-			
+
+
         builder.Services.Configure<OpdbClientOptions>(builder.Configuration.GetSection("Opdb"));
         builder.Services.Configure<DeveloperOptions>(builder.Configuration.GetSection("DeveloperOptions"));
         builder.Services.AddScoped<IOpdbClient, OpdbClient.Interfaces.Impl.OpdbClient>();
@@ -91,14 +89,11 @@ public partial class Program
             })
             .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
             {
-                if (myJwtBearerOptions is null)
-                {
-                    throw new Exception("Cannot read Jwt Bearer configuration");
-                }
+                if (myJwtBearerOptions is null) throw new Exception("Cannot read Jwt Bearer configuration");
 
                 var validIssuerSigningKey =
                     myJwtBearerOptions.SigningKeys.First(s => s.Issuer == myJwtBearerOptions.ValidIssuer);
-                o.TokenValidationParameters = new TokenValidationParameters()
+                o.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
@@ -110,12 +105,11 @@ public partial class Program
                         new SymmetricSecurityKey(Encoding.UTF8.GetBytes(validIssuerSigningKey.Value))
                 };
             });
-        
+
         var appleAuthOptions = builder.Configuration.GetSection("Authentication:MyOptions:Apple")
             .Get<AppleAuthenticationOptions>();
         if (appleAuthOptions is not null)
         {
-
             authBuilder.AddApple(options =>
             {
                 options.ClientId = appleAuthOptions.ClientId;
@@ -129,7 +123,6 @@ public partial class Program
                 }
                 else
                 {
-
                     var pkFile =
                         builder.Environment.ContentRootFileProvider.GetFileInfo(
                             $"AuthKey_{appleAuthOptions.KeyId}.p8");
@@ -148,13 +141,11 @@ public partial class Program
             var googleAuthOptions = builder.Configuration.GetSection("Authentication:MyOptions:Google")
                 .Get<OauthAuthenticationOptions>();
             if (googleAuthOptions is not null)
-            {
                 authBuilder.AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
                 {
                     options.ClientId = googleAuthOptions.ClientId;
                     options.ClientSecret = googleAuthOptions.ClientSecret;
                 });
-            }
         }
 
         builder.Services.AddControllers()
@@ -169,22 +160,18 @@ public partial class Program
                 .RequireAuthenticatedUser()
                 .Build();
         });
-        
+
         builder.Services.AddSwaggerGen(c =>
         {
-            c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "PinIQ API", Version = "v1" });
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "PinIQ API", Version = "v1" });
         });
-        
+
         var app = builder.Build();
-        
+
         if (app.Environment.IsDevelopment())
-        {
             app.UseDeveloperExceptionPage();
-        }
         else
-        {
             app.UseExceptionHandler("/error");
-        }
 
         app.UseHttpsRedirection();
 
@@ -196,19 +183,16 @@ public partial class Program
 
         app.UseSwagger();
 
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "PinIQ API V1");
-        });
+        app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "PinIQ API V1"); });
 
         app.UseStaticFiles();
-        
-        
+
+
         CreateDbIfNotExists(app).Wait();
-           
+
         app.Run();
     }
-    
+
     private static async Task CreateDbIfNotExists(IHost host)
     {
         using var scope = host.Services.CreateScope();

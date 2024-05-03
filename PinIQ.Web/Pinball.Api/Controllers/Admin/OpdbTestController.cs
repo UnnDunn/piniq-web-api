@@ -1,13 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Pinball.Api.Services.Interfaces;
-using Pinball.OpdbClient.Entities;
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Pinball.Api.Services.Interfaces;
+using Pinball.Entities.Opdb;
 
 namespace Pinball.Api.Controllers.Admin;
 
-[Route("api/admin/[controller]"), ApiController, AllowAnonymous]
+[Route("api/admin/[controller]")]
+[ApiController]
+[AllowAnonymous]
 public class OpdbTestController : ControllerBase
 {
     private readonly ITestOpdbService _opdbService;
@@ -24,5 +26,5 @@ public class OpdbTestController : ControllerBase
         if (opdbId == null) throw new ArgumentException(nameof(id));
         var result = await _opdbService.GetAsync(opdbId);
         return result;
-    } 
+    }
 }

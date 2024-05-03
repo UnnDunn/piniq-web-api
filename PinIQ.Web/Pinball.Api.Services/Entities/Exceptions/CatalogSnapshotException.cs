@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Runtime.Serialization;
 
 namespace Pinball.Api.Services.Entities.Exceptions;
 
 public class CatalogSnapshotException : Exception
 {
-    public int SnapshotId { get; private set; }
-
     public CatalogSnapshotException()
     {
     }
@@ -25,14 +22,15 @@ public class CatalogSnapshotException : Exception
         SnapshotId = id;
     }
 
-    public CatalogSnapshotException(int id, string message) : base (message)
+    public CatalogSnapshotException(int id, string message) : base(message)
     {
         SnapshotId = id;
     }
 
-    public CatalogSnapshotException(int id, string message, Exception exception) : base (message, exception)
+    public CatalogSnapshotException(int id, string message, Exception exception) : base(message, exception)
     {
         SnapshotId = id;
     }
 
+    public int SnapshotId { get; private set; }
 }

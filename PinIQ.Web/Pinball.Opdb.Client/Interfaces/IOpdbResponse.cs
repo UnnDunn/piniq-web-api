@@ -1,12 +1,11 @@
-﻿namespace Pinball.OpdbClient.Interfaces
-{
-    public interface IOpdbResponse
-    {
-        string JsonResponse { get; }
-    }
+﻿namespace Pinball.OpdbClient.Interfaces;
 
-    public interface IOpdbResponse<out T> : IOpdbResponse
-    {
-        T Result { get; }
-    }
+public interface IOpdbResponse
+{
+    string JsonResponse { get; }
+}
+
+public interface IOpdbResponse<out T> : IOpdbResponse
+{
+    T Result { get; }
 }

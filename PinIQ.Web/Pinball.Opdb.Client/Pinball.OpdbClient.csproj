@@ -1,33 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <Version>0.1.5</Version>
-    <Description>Methods and entities for querying OPDB (https://opdb.org)</Description>
-    <Copyright>2021 Uchendu Nwachuku</Copyright>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>UnnDunn.Pinball.OpdbClient</PackageId>
-    <Authors></Authors>
-    <Company>PinIQ</Company>
-    <Product>PinIQ</Product>
-    <LangVersion>default</LangVersion>
-    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <Version>0.1.5</Version>
+        <Description>Methods and entities for querying OPDB (https://opdb.org)</Description>
+        <Copyright>2021 Uchendu Nwachuku</Copyright>
+        <PackageId>UnnDunn.Pinball.OpdbClient</PackageId>
+        <Authors></Authors>
+        <Company>PinIQ</Company>
+        <Product>PinIQ</Product>
+        <LangVersion>default</LangVersion>
+        <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
+    </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-  </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.3" />
-    <PackageReference Include="UrlCombine" Version="2.0.0" />
-  </ItemGroup>
-  
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0"/>
+        <PackageReference Include="System.Text.Json" Version="8.0.3"/>
+        <PackageReference Include="UnnDunn.Pinball.Entities" Version="5.0.0"/>
+        <PackageReference Include="UrlCombine" Version="2.0.0"/>
+    </ItemGroup>
+
 </Project>
