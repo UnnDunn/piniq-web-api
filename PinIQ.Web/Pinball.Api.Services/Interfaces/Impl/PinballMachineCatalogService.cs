@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Pinball.Api.Data;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Entities.Api.Responses.PinballCatalog;
+using Pinball.Entities.Core.Exceptions;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
 using Pinball.Entities.Opdb;
@@ -53,22 +54,34 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         var snapshotToDelete = await _dbContext.CatalogSnapshots.FindAsync(id);
 
-        if (snapshotToDelete == null) throw new KeyNotFoundException($"The snapshot with id {id} was not found");
+        if (snapshotToDelete == null) throw new CatalogSnapshotNotFoundException(id);
 
         _dbContext.CatalogSnapshots.Remove(snapshotToDelete);
         await _dbContext.SaveChangesAsync();
     }
 
-
+    /// <summary>
+    /// Refreshes the cached metadata for all catalog snapshots in the database
+    /// </summary>
     public async Task RefreshCatalogSnapshotsAsync()
     {
         LogActionRefreshingCatalogSnapshots();
         var snapshots = await _dbContext.CatalogSnapshots.ToListAsync();
-        foreach (var snapshot in snapshots) _dbContext.Entry(snapshot).State = EntityState.Modified;
+        foreach (var snapshot in snapshots)
+        {
+            _dbContext.Entry(snapshot).State = EntityState.Modified;
+            _dbContext.Entry(snapshot).Property(s => s.MachineJsonResponse).IsModified = true;
+            _dbContext.Entry(snapshot).Property(s => s.MachineGroupJsonResponse).IsModified = true;
+        }
 
         await _dbContext.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Refreshes the cached metadata for the selected catalog snapshot in the database
+    /// </summary>
+    /// <param name="id">ID of the catalog snapshot to refresh</param>
+    /// <exception cref="KeyNotFoundException">Thrown if a snapshot with the given ID is not found</exception>
     public async Task RefreshCatalogSnapshotAsync(int id)
     {
         var snapshotToUpdate = await _dbContext.CatalogSnapshots.FindAsync(id);
@@ -77,9 +90,16 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         LogActionRefreshingCatalogSnapshotForId(snapshotToUpdate.Id);
         _dbContext.Entry(snapshotToUpdate).State = EntityState.Modified;
+        _dbContext.Entry(snapshotToUpdate).Property(s => s.MachineJsonResponse).IsModified = true;
+        _dbContext.Entry(snapshotToUpdate).Property(s => s.MachineGroupJsonResponse).IsModified = true;
         await _dbContext.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Retrieves a single catalog snapshot including machine data
+    /// </summary>
+    /// <param name="id">ID of the snapshot to retrieve</param>
+    /// <returns>The selected catalog snapshot, or null if one matching the indicated ID was not found</returns>
     public async Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id)
     {
         LogActionGettingCatalogSnapshotById(id);
@@ -105,6 +125,11 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         return result;
     }
 
+    /// <summary>
+    /// Retrieves a collection of catalog snapshots matching the given IDs
+    /// </summary>
+    /// <param name="ids">IDs of the snapshots to retrieve</param>
+    /// <returns>A list of the selected snapshots. The list will be empty if matching snapshots were not found</returns>
     public async Task<List<CatalogSnapshot>> GetCatalogSnapshotsAsync(IEnumerable<int> ids)
     {
         using var log = _logger.BeginScope("Querying database for catalog snapshots with IDs {ids}", ids);
@@ -132,6 +157,10 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         return result;
     }
 
+    /// <summary>
+    /// Gets the current published snapshot
+    /// </summary>
+    /// <returns>The current published snapshot, if it exists, or null if it does not</returns>
     public async Task<CatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
     {
         LogGettingPublishedCatalogSnapshots();
@@ -187,28 +216,44 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         return catalogExportEntry;
     }
 
-    public async Task<CatalogSnapshotPublishResult> PublishCatalogSnapshotAsync()
+    public async Task<CatalogSnapshotPublishResult> PublishCatalogSnapshotAsync(int? id = null)
     {
         LogActionPublishCatalogSnapshot();
-        // get latest snapshot
-        var latestSnapshot = await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).FirstOrDefaultAsync();
+        // get all snapshots
+        var allSnapshots = await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).ToListAsync();
+        
+        // get selected or latest unpublished snapshot
+        var snapshotToPublish = id is not null 
+        ? await _dbContext.CatalogSnapshots.FindAsync(id)
+        : await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).FirstOrDefaultAsync();
 
-        if (latestSnapshot == null)
+        if (snapshotToPublish == null)
         {
+            if (id is not null)
+            {
+                LogIssueSelectedCatalogSnapshotNotFound(id.Value);
+                throw new CatalogSnapshotNotFoundException(id);
+            }
             LogIssueNoCatalogSnapshotsFound();
             throw new CatalogSnapshotException("No snapshots found");
         }
-
-        LogProcessLatestCatalogSnapshotIdentified(latestSnapshot.Id, latestSnapshot.Imported);
-        if (latestSnapshot.Published is not null)
+        
+        LogProcessLatestCatalogSnapshotIdentified(snapshotToPublish.Id, snapshotToPublish.Imported);
+        if (snapshotToPublish.Published is not null)
         {
-            LogIssueCatalogSnapshotAlreadyPublished(latestSnapshot.Id, latestSnapshot.Published.Value);
-            throw new CatalogSnapshotException(latestSnapshot.Id, "The latest snapshot has already been published");
+            LogIssueCatalogSnapshotAlreadyPublished(snapshotToPublish.Id, snapshotToPublish.Published.Value);
+            throw new CatalogSnapshotException(snapshotToPublish.Id, "The selected snapshot has already been published");
+        }
+        
+        // check to see if there are any newer published snapshots
+        var newerSnapshots = allSnapshots.Any(s => s.Published is not null && s.Imported > snapshotToPublish.Imported);
+        if (newerSnapshots)
+        {
+            throw new CatalogSnapshotException("There are newer published snapshots");
         }
 
-
-        var machines = latestSnapshot.Machines;
-        var machineGroups = latestSnapshot.MachineGroups;
+        var machines = snapshotToPublish.Machines;
+        var machineGroups = snapshotToPublish.MachineGroups;
 
         if (machines is null || machineGroups is null)
             throw new Exception("Machine snapshot JSON could not be parsed.");
@@ -229,9 +274,15 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // keyword mappings
         await MapPinballKeywordsAsync(machines);
 
+        // mark all snapshots as unpublished
+        foreach (var snapshot in allSnapshots)
+        {
+            snapshot.Published = null;
+        }
+        
         // mark snapshot as published
-        latestSnapshot.Published = DateTimeOffset.Now;
-        LogProcessMarkingCatalogSnapshotAsPublished(latestSnapshot.Id, latestSnapshot.Published.Value);
+        snapshotToPublish.Published = DateTimeOffset.Now;
+        LogProcessMarkingCatalogSnapshotAsPublished(snapshotToPublish.Id, snapshotToPublish.Published.Value);
         await _dbContext.SaveChangesAsync();
 
         // get results
@@ -239,7 +290,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
         var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
         var keywordsTotal = await _dbContext.PinballKeywords.CountAsync();
-        LogDebugCatalogSnapshotPublishCounts(latestSnapshot.Id, machineTotal, machineGroupsTotal, manufacturersTotal,
+        LogDebugCatalogSnapshotPublishCounts(snapshotToPublish.Id, machineTotal, machineGroupsTotal, manufacturersTotal,
             keywordsTotal);
 
         var result = new CatalogSnapshotPublishResult
@@ -248,8 +299,8 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             MachineGroupTotal = machineGroupsTotal,
             ManufacturerTotal = manufacturersTotal,
             KeywordTotal = keywordsTotal,
-            SnapshotId = latestSnapshot.Id,
-            Imported = latestSnapshot.Imported
+            SnapshotId = snapshotToPublish.Id,
+            Imported = snapshotToPublish.Imported
         };
 
         return result;
@@ -556,6 +607,10 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     [LoggerMessage(EventId = 1017, Level = LogLevel.Information,
         Message = "Refreshing catalog snapshot cached data for ID {catalogSnapshotId}")]
     private partial void LogActionRefreshingCatalogSnapshotForId(int catalogSnapshotId);
+
+    [LoggerMessage(EventId = 1018, Level = LogLevel.Error,
+        Message = "Could not publish catalog snapshot with id {id} because it was not found.")]
+    private partial void LogIssueSelectedCatalogSnapshotNotFound(int id);
 
     #endregion
 }

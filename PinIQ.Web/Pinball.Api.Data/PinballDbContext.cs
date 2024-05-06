@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -41,32 +42,50 @@ public partial class PinballDbContext : DbContext
         LogSettingCatalogSnapshotDigestInformation();
         foreach (var entity in ChangeTracker.Entries<OpdbCatalogSnapshot>().ToList())
         {
-            if (entity.State is not (EntityState.Added or EntityState.Modified)) continue;
-            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineJsonResponse));
-            using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineGroupJsonResponse));
-            var machines =
-                JsonSerializer.Deserialize(ms, OpdbJsonSerializerContext.Default.ListMachine);
-            var machineGroups = JsonSerializer.Deserialize(mgs,
-                OpdbJsonSerializerContext.Default.ListMachineGroup);
+            if (entity.State is not (EntityState.Added or EntityState.Modified)) 
+                // entity unchanged, so skip
+                continue;
+            if (string.IsNullOrEmpty(entity.Entity.MachineJsonResponse) ||
+                string.IsNullOrEmpty(entity.Entity.MachineGroupJsonResponse)) 
+                // no json response content to generate digest data from, so skip
+                continue;
+            if (entity.State is EntityState.Modified && !entity.Property(e => e.MachineJsonResponse).IsModified &&
+                !entity.Property(e => e.MachineGroupJsonResponse).IsModified)
+                // json response content is unchanged, so skip
+                continue;
+            try
+            {
+                using var ms = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineJsonResponse));
+                using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineGroupJsonResponse));
+                var machines =
+                    JsonSerializer.Deserialize(ms, OpdbJsonSerializerContext.Default.ListMachine);
+                var machineGroups = JsonSerializer.Deserialize(mgs,
+                    OpdbJsonSerializerContext.Default.ListMachineGroup);
 
-            if (machines is null || machineGroups is null)
-                throw new Exception("Parsing machines or machine groups from Opdb failed");
+                if (machines is null || machineGroups is null)
+                    continue;
 
-            entity.Entity.Machines = machines;
-            entity.Entity.MachineGroups = machineGroups;
+                entity.Entity.Machines = machines;
+                entity.Entity.MachineGroups = machineGroups;
 
-            entity.Entity.MachineCount = machines.Count;
-            entity.Entity.MachineGroupCount = machineGroups.Count;
-            entity.Entity.ManufacturerCount = machines
-                .Where(m => m.Manufacturer != null)
-                .Select(m => m.Manufacturer?.ManufacturerId)
-                .Distinct()
-                .Count();
-            entity.Entity.KeywordCount = machines.SelectMany(m => m.Keywords ?? [])
-                .Distinct().Count();
+                entity.Entity.MachineCount = machines.Count;
+                entity.Entity.MachineGroupCount = machineGroups.Count;
+                entity.Entity.ManufacturerCount = machines
+                    .Where(m => m.Manufacturer != null)
+                    .Select(m => m.Manufacturer?.ManufacturerId)
+                    .Distinct()
+                    .Count();
+                entity.Entity.KeywordCount = machines.SelectMany(m => m.Keywords ?? [])
+                    .Distinct().Count();
 
-            var newestMachine = machines.MaxBy(m => m.ManufactureDate);
-            entity.Entity.NewestMachine = newestMachine?.Name ?? "N/A";
+                var newestMachine = machines.MaxBy(m => m.ManufactureDate);
+                entity.Entity.NewestMachine = newestMachine?.Name ?? "N/A";
+            }
+            catch (JsonException jsonException)
+            {
+                // log the parsing error but otherwise do nothing
+                LogErrorParsingJsonResponse(jsonException, entity.Entity.Id);
+            }
         }
     }
 
@@ -176,4 +195,8 @@ public partial class PinballDbContext : DbContext
     [LoggerMessage(EventId = 1401, Level = LogLevel.Information,
         Message = "Setting CatalogSnapshot Digest information")]
     private partial void LogSettingCatalogSnapshotDigestInformation();
+
+    [LoggerMessage(EventId = 1402, Level = LogLevel.Error,
+        Message = "Failed parsing Json Response data for snapshot Id {snapshotId}")]
+    private partial void LogErrorParsingJsonResponse(JsonException ex, int snapshotId);
 }
