@@ -11,7 +11,7 @@ public interface IPinballMachineCatalogService
     Task<CatalogSnapshot> ImportNewCatalogSnapshotAsync();
     Task<CatalogSnapshot?> GetCatalogSnapshotAsync(int id);
     Task<CatalogSnapshot?> GetPublishedCatalogSnapshotAsync();
-    Task<CatalogSnapshotPublishResult> PublishCatalogSnapshotAsync();
+    Task<CatalogSnapshotPublishResult> PublishCatalogSnapshotAsync(int? id = null);
     Task DeleteCatalogSnapshotAsync(int id);
     Task<IEnumerable<CatalogSnapshot>> GetAllCatalogSnapshotsAsync();
 

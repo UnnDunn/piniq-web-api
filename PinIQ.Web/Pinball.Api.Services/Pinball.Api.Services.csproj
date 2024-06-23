@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="UnnDunn.Pinball.Entities" Version="5.0.0"/>
+        <PackageReference Include="UnnDunn.Pinball.Entities" Version="5.1.0" />
     </ItemGroup>
 
 </Project>

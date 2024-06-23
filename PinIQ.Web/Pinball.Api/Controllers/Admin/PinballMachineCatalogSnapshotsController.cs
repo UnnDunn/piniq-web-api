@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Entities.Api.Responses.PinballCatalog;
+using Pinball.Entities.Core.Exceptions;
 using CatalogSnapshotPublishResult = Pinball.Entities.Api.Responses.PinballCatalog.CatalogSnapshotPublishResult;
 
 namespace Pinball.Api.Controllers.Admin;
@@ -86,6 +87,28 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
         }
     }
 
+    [HttpPost]
+    [Route("Publish/{id:int}")] //POST /api/admin/PinballMachineCatalogSnapshots/Publish/6
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CatalogSnapshotPublishResult>> PublishCatalogSnapshot(int id)
+    {
+        try
+        {
+            var result = await _catalogService.PublishCatalogSnapshotAsync(id);
+            return Ok(result);
+        }
+        catch (CatalogSnapshotException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (CatalogSnapshotNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
     [HttpPost("Refresh")] //POST /api/admin/PinballMachineCatalogSnapshots/Refresh
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -143,9 +166,9 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
             await _catalogService.DeleteCatalogSnapshotAsync(id);
             return Ok();
         }
-        catch (KeyNotFoundException)
+        catch (CatalogSnapshotNotFoundException cex)
         {
-            return NotFound();
+            return NotFound(cex.Message);
         }
         catch (CatalogSnapshotException ex)
         {
