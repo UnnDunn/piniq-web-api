@@ -258,6 +258,9 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         if (machines is null || machineGroups is null)
             throw new Exception("Machine snapshot JSON could not be parsed.");
         await LoadMachineGroupsAsync(machineGroups);
+        
+        // hold a dictionary of Machine Group Ids for later mapping
+        var machineGroupIds = await _dbContext.PinballMachineGroups.ToDictionaryAsync(p => p.OpdbId, p => p.Id);
 
         // manufacturers
         var manufacturers = machines
@@ -268,11 +271,14 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // machines
         await LoadPinballMachinesAsync(machines);
 
+        // hold a dictionary of machine Ids for later mapping
+        var machineIds = await _dbContext.PinballMachines.ToDictionaryAsync(p => p.OpdbId, q => q.Id);
+        
         // keywords
         await LoadKeywordsAsync(machines);
 
         // keyword mappings
-        await MapPinballKeywordsAsync(machines);
+        await MapPinballKeywordsAsync(machines, machineIds);
 
         // mark all snapshots as unpublished
         foreach (var snapshot in allSnapshots)
@@ -285,14 +291,14 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         LogProcessMarkingCatalogSnapshotAsPublished(snapshotToPublish.Id, snapshotToPublish.Published.Value);
         await _dbContext.SaveChangesAsync();
 
-        // get results
+        // // get results
         var machineTotal = await _dbContext.PinballMachines.CountAsync();
         var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
         var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
         var keywordsTotal = await _dbContext.PinballKeywords.CountAsync();
         LogDebugCatalogSnapshotPublishCounts(snapshotToPublish.Id, machineTotal, machineGroupsTotal, manufacturersTotal,
             keywordsTotal);
-
+        
         var result = new CatalogSnapshotPublishResult
         {
             MachineTotal = machineTotal,
@@ -302,7 +308,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             SnapshotId = snapshotToPublish.Id,
             Imported = snapshotToPublish.Imported
         };
-
+        
         return result;
     }
 
@@ -344,16 +350,16 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         // delete keywords
         await _dbContext.PinballKeywords.ExecuteDeleteAsync();
-
+        
         // delete features
         await _dbContext.PinballFeatures.ExecuteDeleteAsync();
-
+        
         // delete pinball machines
         await _dbContext.PinballMachines.ExecuteDeleteAsync();
-
+        
         // delete manufacturers
         await _dbContext.PinballManufacturers.ExecuteDeleteAsync();
-
+        
         await _dbContext.SaveChangesAsync();
     }
 
@@ -450,7 +456,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             .Distinct(new MachineGroupComparer())
             .Select(m => new PinballMachineGroup
             {
-                Id = m.OpdbId.ToString(),
+                OpdbId = m.OpdbId.ToString(),
                 Name = m.Name,
                 ShortName = m.Shortname,
                 Description = m.Description
@@ -481,7 +487,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
                 _dbContext.Entry(savedManufacturer).CurrentValues.SetValues(newManufacturer);
             else
                 _dbContext.Add(newManufacturer);
-
+        
         await _dbContext.SaveChangesAsync();
     }
 
@@ -489,14 +495,13 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     {
         var newMachines = machines.Select(m => new PinballMachine
         {
-            Id = m.OpdbId.ToString(),
+            OpdbId = m.OpdbId.ToString(),
             CommonName = m.CommonName,
-            Name = m.Name ?? string.Empty,
+            Name = m.Name,
             IpdbId = m.IpdbId,
             ManufactureDate = m.ManufactureDate,
             ManufacturerId = m.Manufacturer?.ManufacturerId,
             PlayerCount = (short)m.PlayerCount,
-            MachineGroupId = m.OpdbIdentifier.GroupString,
             TypeId = m.MachineType
         }).ToList();
 
@@ -505,7 +510,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
     private async Task LoadKeywordsAsync(IEnumerable<Machine> machines)
     {
-        var newKeywords = machines.SelectMany(m => m.Keywords ?? new List<string>()).Distinct().ToList();
+        var newKeywords = machines.SelectMany(m => m.Keywords ?? []).Distinct().ToList();
 
         var savedKeywords = await _dbContext.PinballKeywords.ToDictionaryAsync(k => k.Name, k => k.Id);
 
@@ -520,7 +525,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await _dbContext.BulkInsertAsync(newKeywordEntities);
     }
 
-    private async Task MapPinballKeywordsAsync(IEnumerable<Machine> machines)
+    private async Task MapPinballKeywordsAsync(IEnumerable<Machine> machines, Dictionary<string, int> machineIds)
     {
         var savedKeywords = await _dbContext.PinballKeywords.ToDictionaryAsync(k => k.Name, k => k.Id);
 
@@ -531,7 +536,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             var mappings = machine.Keywords?.Select(kw => new PinballMachineKeywordMapping
             {
                 KeywordId = savedKeywords[kw],
-                MachineId = machine.OpdbId
+                MachineId = machineIds[machine.OpdbId]
             });
             if (mappings is not null)
                 keywordMappings.AddRange(mappings);

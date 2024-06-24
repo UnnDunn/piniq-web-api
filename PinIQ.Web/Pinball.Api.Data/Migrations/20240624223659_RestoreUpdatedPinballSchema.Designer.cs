@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pinball.Api.Data;
 
@@ -11,9 +12,11 @@ using Pinball.Api.Data;
 namespace Pinball.Api.Data.Migrations
 {
     [DbContext(typeof(PinballDbContext))]
-    partial class PinballDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240624223659_RestoreUpdatedPinballSchema")]
+    partial class RestoreUpdatedPinballSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
