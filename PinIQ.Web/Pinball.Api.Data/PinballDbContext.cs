@@ -7,6 +7,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Logging;
+using Pinball.Entities.Core.Entities;
 using Pinball.Entities.Data.Helpers;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
@@ -30,6 +31,7 @@ public partial class PinballDbContext : PinballMachineDataContext
     }
 
     public DbSet<OpdbCatalogSnapshot> CatalogSnapshots { get; set; } = null!;
+    public DbSet<CatalogChangelog> CatalogChangelogs { get; set; } = null!;
     public DbSet<OpdbChangelog> OpdbChangelogs { get; set; } = null!;
 
 
@@ -129,6 +131,24 @@ public partial class PinballDbContext : PinballMachineDataContext
             ownedMachineGroupBuilder.ToJson();
             ownedMachineGroupBuilder.Ignore(mg => mg.OpdbIdentifier);
         });
+        
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Id).ValueGeneratedNever();
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Created).HasDefaultValueSql("sysdatetimeoffset()");
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Updated).HasDefaultValueSql("sysdatetimeoffset()");
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachines)
+            .HasConversion(cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine),
+                json => JsonSerializer.Deserialize(json, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine));
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachineGroups)
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup),
+                json => JsonSerializer.Deserialize(json,
+                    OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup));
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballManufacturers)
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer),
+                json => JsonSerializer.Deserialize(json,
+                    OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer));
+        
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
 

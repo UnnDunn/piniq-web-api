@@ -33,7 +33,7 @@
         <PackageReference Include="Serilog.Sinks.ApplicationInsights" Version="4.0.1-dev-00043"/>
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-        <PackageReference Include="UnnDunn.Pinball.Entities" Version="6.0.0" />
+        <PackageReference Include="UnnDunn.Pinball.Entities" Version="6.1.0-CI-20240626-164126" />
     </ItemGroup>
 
     <ItemGroup>
