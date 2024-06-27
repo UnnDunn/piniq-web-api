@@ -100,10 +100,11 @@ stages:
                     deploymentMethod: "auto"
 
                 - task: SqlAzureDacpacDeployment@1
+                  displayName: "Apply Migration Script"
                   inputs:
                     azureSubscription: "BizSpark"
                     AuthenticationType: "servicePrincipal"
-                    ServerName: "piniqwebdbserver"
+                    ServerName: "piniqwebdbserver.database.windows.net"
                     DatabaseName: "PinIqWeb_Staging"
                     deployType: "SqlTask"
                     SqlFile: "$(Pipeline.Workspace)/PinIqWeb/migrationScript.sql"
