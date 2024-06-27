@@ -103,7 +103,7 @@ stages:
                   displayName: "Apply Migration Script"
                   inputs:
                     azureSubscription: 'BizSpark'
-                    AuthenticationType: 'aadAuthenticationIntegrated'
+                    AuthenticationType: 'servicePrincipal'
                     ServerName: 'piniqwebdbserver.database.windows.net'
                     DatabaseName: 'PinIqWeb_Staging'
                     deployType: 'SqlTask'
