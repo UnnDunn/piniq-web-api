@@ -71,7 +71,8 @@ stages:
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
       - deployment: Deploy
-        pool: Default
+        pool:
+          vmImage: windows-latest
         environment: Staging
         strategy:
           runOnce:
