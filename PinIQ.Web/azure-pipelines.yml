@@ -47,6 +47,13 @@ stages:
               projects: "**/*.csproj"
               arguments: "--no-restore --configuration $(buildConfiguration)"
 
+          - task: DotNetCoreCLI@2
+            inputs:
+              command: "custom"
+              custom: "ef"
+              arguments: "migrations script -p './Pinball.Api.Data/Pinball.Api.Data.csproj' -s './Pinball.Api/Pinball.Api.csproj' -i -o 'migrationScript.sql'"
+            displayName: "Create SQL Migration File"
+
           - task: DotNetCoreClI@2
             displayName: "Publish web project"
             inputs:
