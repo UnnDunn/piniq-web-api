@@ -1,79 +1,85 @@
-
 pool: default
 
 trigger:
-- master
-  
+  - master
+
 variables:
-  buildConfiguration: 'Release'
+  buildConfiguration: "Release"
 
 stages:
-  - stage: 'Build'
-    displayName: 'Build PinIqWeb'
+  - stage: "Build"
+    displayName: "Build PinIqWeb"
     jobs:
-    - job: 'Build'
-      displayName: 'Build job'
-      pool: default
-      
-      variables:
-        buildConfiguration: 'Release'
-        dotnetSdkVersion: '8.x'
-  
-      steps:
-      - task: UseDotNet@2
-        displayName: 'Install .Net Core SDK $(dotnetSdkVersion)'
-        inputs:
-          version: '$(dotnetSdkVersion)'
-          performMultiLevelLookup: true
-      
-      - task: DotNetCoreCLI@2
-        displayName: 'Restore NuGet packages'
-        inputs:
-          command: 'restore'
-          projects: '**/*.csproj'
-          feedsToUse: 'select'
-          vstsFeed: 'UnnDunn-Nuget'
-          
-      - task: DotNetCoreCLI@2
-        displayName: 'Build'
-        inputs:
-          command: 'build'
-          projects: '**/*.csproj'
-          arguments: '--no-restore --configuration $(buildConfiguration)'
-          
-      - task: DotNetCoreClI@2
-        displayName: 'Publish web project'
-        inputs: 
-          command: 'publish'
-          publishWebProjects: True
-          arguments: '--no-restore --no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-          zipAfterPublish: True
-          
-      - publish: '$(Build.ArtifactStagingDirectory)'
-        artifact: 'PinIqWeb'
+      - job: "Build"
+        displayName: "Build job"
+        pool: default
 
-  - stage: 'Staging'
-    displayName: 'Deploy to Staging environment'
+        variables:
+          buildConfiguration: "Release"
+          dotnetSdkVersion: "8.x"
+
+        steps:
+          - task: UseDotNet@2
+            displayName: "Install .Net Core SDK $(dotnetSdkVersion)"
+            inputs:
+              version: "$(dotnetSdkVersion)"
+              performMultiLevelLookup: true
+
+          - task: DotNetCoreCLI@2
+            displayName: "Install Entity Framework tool"
+            inputs:
+              command: "custom"
+              custom: "tool"
+              arguments: "install -g dotnet-ef"
+
+          - task: DotNetCoreCLI@2
+            displayName: "Restore NuGet packages"
+            inputs:
+              command: "restore"
+              projects: "**/*.csproj"
+              feedsToUse: "select"
+              vstsFeed: "UnnDunn-Nuget"
+
+          - task: DotNetCoreCLI@2
+            displayName: "Build"
+            inputs:
+              command: "build"
+              projects: "**/*.csproj"
+              arguments: "--no-restore --configuration $(buildConfiguration)"
+
+          - task: DotNetCoreClI@2
+            displayName: "Publish web project"
+            inputs:
+              command: "publish"
+              publishWebProjects: True
+              arguments: "--no-restore --no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)"
+              zipAfterPublish: True
+
+          - publish: "$(Build.ArtifactStagingDirectory)"
+            artifact: "PinIqWeb"
+
+  - stage: "Staging"
+    displayName: "Deploy to Staging environment"
     dependsOn: Build
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
-    - deployment: Deploy
-      pool: Default
-      environment: Staging
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-            - download: current
-              artifact: 'PinIqWeb'
-            - task: AzureWebApp@1
-              displayName: 'Azure App Service Deploy'
-              inputs:
-                azureSubscription: 'BizSpark'
-                appType: 'webApp'
-                appName: 'PinIqWeb'
-                deployToSlotOrASE: true
-                resourceGroupName: 'PinIQ.Dev'
-                slotName: 'staging'
-                package: '$(Pipeline.Workspace)/PinIqWeb/*.zip'
-                deploymentMethod: 'auto'
+      - deployment: Deploy
+        pool: Default
+        environment: Staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: "PinIqWeb"
+                - task: AzureWebApp@1
+                  displayName: "Azure App Service Deploy"
+                  inputs:
+                    azureSubscription: "BizSpark"
+                    appType: "webApp"
+                    appName: "PinIqWeb"
+                    deployToSlotOrASE: true
+                    resourceGroupName: "PinIQ.Dev"
+                    slotName: "staging"
+                    package: "$(Pipeline.Workspace)/PinIqWeb/*.zip"
+                    deploymentMethod: "auto"
