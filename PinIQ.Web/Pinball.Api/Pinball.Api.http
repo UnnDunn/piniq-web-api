@@ -1,6 +1,4 @@
-﻿@Pinball.Api_HostAddress = https://localhost:8001
-
-GET {{Pinball.Api_HostAddress}}/login/TestToken?testKey=thisIsATest
+﻿GET {{Pinball.Api_HostAddress}}/login/TestToken?testKey=thisIsATest
 
 > {% client.global.set("AccessToken", response.body.accessToken); %}
 
