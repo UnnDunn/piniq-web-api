@@ -51,7 +51,7 @@ stages:
             inputs:
               command: "custom"
               custom: "ef"
-              arguments: "migrations script -p ./Pinball.Api.Data/Pinball.Api.Data.csproj -s ./Pinball.Api/Pinball.Api.csproj -i -o $(Build.ArtifactStagingDirectory)/migrationScript.sql"
+              arguments: "migrations script -p ./PinIQ.Web/Pinball.Api.Data/Pinball.Api.Data.csproj -s ./PinIQ.Web/Pinball.Api/Pinball.Api.csproj -i -o $(Build.ArtifactStagingDirectory)/migrationScript.sql"
             displayName: "Create SQL Migration File"
 
           - task: DotNetCoreClI@2
