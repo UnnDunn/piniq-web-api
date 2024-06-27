@@ -1,24 +1,23 @@
 ﻿using System;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Logging;
+using Pinball.Entities.Core.Entities;
 using Pinball.Entities.Data.Helpers;
 using Pinball.Entities.Data.Opdb;
 using Pinball.Entities.Data.PinballMachines;
+using Pinball.Entities.Opdb;
 using Pinball.Entities.Opdb.Helpers;
 
 namespace Pinball.Api.Data;
 
-public partial class PinballDbContext : DbContext
+public partial class PinballDbContext : PinballMachineDataContext
 {
-    private const string SqlCaseInsensitiveCollationName = "SQL_Latin1_General_CP1_CS_AS";
-
-    private readonly string _caseInsensitiveCollationName = SqlCaseInsensitiveCollationName;
+    // private readonly string _caseInsensitiveCollationName = SqlCaseInsensitiveCollationName;
     private readonly ILogger<PinballDbContext> _logger;
 
     public PinballDbContext(DbContextOptions<PinballDbContext> options, ILogger<PinballDbContext> logger) :
@@ -28,29 +27,26 @@ public partial class PinballDbContext : DbContext
         SavingChanges += SetCatalogSnapshotDigestInformation;
     }
 
-    public DbSet<OpdbCatalogSnapshot> CatalogSnapshots { get; set; } = null!;
-    public DbSet<OpdbChangelog> OpdbChangelogs { get; set; } = null!;
-    public DbSet<PinballMachine> PinballMachines { get; set; } = null!;
-    public DbSet<PinballMachineFeature> PinballFeatures { get; set; } = null!;
-    public DbSet<PinballMachineType> PinballTypes { get; set; } = null!;
-    public DbSet<PinballMachineManufacturer> PinballManufacturers { get; set; } = null!;
-    public DbSet<PinballMachineKeyword> PinballKeywords { get; set; } = null!;
-    public DbSet<PinballMachineGroup> PinballMachineGroups { get; set; } = null!;
+    public DbSet<OpdbCatalogSnapshot> CatalogSnapshots { get; init; } = null!;
+    public DbSet<CatalogChangelog> CatalogChangelogs { get; init; } = null!;
+    public DbSet<OpdbChangelog> OpdbChangelogs { get; init; } = null!;
+
 
     private void SetCatalogSnapshotDigestInformation(object? sender, SavingChangesEventArgs e)
     {
         LogSettingCatalogSnapshotDigestInformation();
         foreach (var entity in ChangeTracker.Entries<OpdbCatalogSnapshot>().ToList())
         {
-            if (entity.State is not (EntityState.Added or EntityState.Modified)) 
+            if (entity.State is not (EntityState.Added or EntityState.Modified))
                 // entity unchanged, so skip
                 continue;
             if (string.IsNullOrEmpty(entity.Entity.MachineJsonResponse) ||
-                string.IsNullOrEmpty(entity.Entity.MachineGroupJsonResponse)) 
+                string.IsNullOrEmpty(entity.Entity.MachineGroupJsonResponse))
                 // no json response content to generate digest data from, so skip
                 continue;
-            if (entity.State is EntityState.Modified && !entity.Property(e => e.MachineJsonResponse).IsModified &&
-                !entity.Property(e => e.MachineGroupJsonResponse).IsModified)
+            if (entity.State is EntityState.Modified &&
+                !entity.Property(entry => entry.MachineJsonResponse).IsModified &&
+                !entity.Property(entry => entry.MachineGroupJsonResponse).IsModified)
                 // json response content is unchanged, so skip
                 continue;
             try
@@ -59,11 +55,24 @@ public partial class PinballDbContext : DbContext
                 using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineGroupJsonResponse));
                 var machines =
                     JsonSerializer.Deserialize(ms, OpdbJsonSerializerContext.Default.ListMachine);
+
                 var machineGroups = JsonSerializer.Deserialize(mgs,
                     OpdbJsonSerializerContext.Default.ListMachineGroup);
 
                 if (machines is null || machineGroups is null)
                     continue;
+
+                foreach (var machine in machines)
+                {
+                    var hashCode = machine.CalculateMachineHash();
+                    machine.EqualityHash = hashCode;
+                }
+
+                foreach (var machineGroup in machineGroups)
+                {
+                    var equalityHash = machineGroup.CalculateMachineGroupHash();
+                    machineGroup.EqualityHash = equalityHash;
+                }
 
                 entity.Entity.Machines = machines;
                 entity.Entity.MachineGroups = machineGroups;
@@ -106,55 +115,6 @@ public partial class PinballDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // pinball machine
-        modelBuilder.Entity<PinballMachine>().HasKey(pm => pm.Id);
-        modelBuilder.Entity<PinballMachine>().HasMany(pm => pm.KeywordMappings).WithOne(km => km.Machine)
-            .HasForeignKey(km => km.MachineId).OnDelete(DeleteBehavior.Cascade);
-        modelBuilder.Entity<PinballMachine>().HasMany(pm => pm.FeatureMappings).WithOne(fm => fm.Machine)
-            .HasForeignKey(fm => fm.MachineId).OnDelete(DeleteBehavior.Cascade);
-        modelBuilder.Entity<PinballMachine>().HasOne(pm => pm.Manufacturer).WithMany(pm => pm.Machines)
-            .HasForeignKey(pm => pm.ManufacturerId).OnDelete(DeleteBehavior.SetNull);
-        modelBuilder.Entity<PinballMachine>().HasOne(pm => pm.Type).WithMany().HasForeignKey(pm => pm.TypeId)
-            .OnDelete(DeleteBehavior.Restrict);
-        modelBuilder.Entity<PinballMachine>().Ignore(pm => pm.Keywords);
-        modelBuilder.Entity<PinballMachine>().Ignore(pm => pm.Features);
-        modelBuilder.Entity<PinballMachine>().HasOne(pm => pm.MachineGroup).WithMany(mg => mg.Machines)
-            .HasForeignKey(pm => pm.MachineGroupId).OnDelete(DeleteBehavior.SetNull);
-        modelBuilder.Entity<PinballMachine>().Property(pm => pm.Id).UseCollation(_caseInsensitiveCollationName);
-        modelBuilder.Entity<PinballMachine>().Property(pm => pm.MachineGroupId)
-            .UseCollation(_caseInsensitiveCollationName);
-
-        // pinball features
-        modelBuilder.Entity<PinballMachineFeatureMapping>().HasKey(pmfm => new { pmfm.FeatureId, pmfm.MachineId });
-        modelBuilder.Entity<PinballMachineFeatureMapping>().Property(pmfm => pmfm.MachineId)
-            .UseCollation(_caseInsensitiveCollationName);
-        modelBuilder.Entity<PinballMachineFeature>().HasKey(pmf => pmf.Id);
-        modelBuilder.Entity<PinballMachineFeature>().HasMany(pmf => pmf.Mappings).WithOne(pmf => pmf.Feature)
-            .HasForeignKey(pmf => pmf.FeatureId).OnDelete(DeleteBehavior.Cascade);
-
-        // pinball keywords
-        modelBuilder.Entity<PinballMachineKeywordMapping>().HasKey(pmkm => new { pmkm.KeywordId, pmkm.MachineId });
-        modelBuilder.Entity<PinballMachineKeywordMapping>().HasIndex(pmkm => pmkm.KeywordId);
-        modelBuilder.Entity<PinballMachineKeywordMapping>().Property(pmkm => pmkm.MachineId)
-            .UseCollation(_caseInsensitiveCollationName);
-        modelBuilder.Entity<PinballMachineKeyword>().HasKey(pmf => pmf.Id);
-        modelBuilder.Entity<PinballMachineKeyword>().HasMany(pk => pk.Mappings).WithOne(pk => pk.Keyword)
-            .HasForeignKey(pk => pk.KeywordId).OnDelete(DeleteBehavior.Cascade);
-
-        // machine types
-        modelBuilder.Entity<PinballMachineType>().HasData(
-            new PinballMachineType { Id = "ss", Name = "Solid-State" },
-            new PinballMachineType { Id = "em", Name = "Electro-Mechanical" },
-            new PinballMachineType { Id = "me", Name = "Mechanical" },
-            new PinballMachineType { Id = "dmd", Name = "Dot-Matrix Display" }
-        );
-
-        // manufacturer
-        modelBuilder.Entity<PinballMachineManufacturer>().Property(pmm => pmm.Id).ValueGeneratedNever();
-
-        // machine groups
-        modelBuilder.Entity<PinballMachineGroup>().Property(g => g.Id).UseCollation(_caseInsensitiveCollationName);
-
         modelBuilder.Entity<OpdbCatalogSnapshot>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbCatalogSnapshot>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbCatalogSnapshot>().OwnsMany(cs => cs.Machines, ownedMachineBuilder =>
@@ -169,6 +129,25 @@ public partial class PinballDbContext : DbContext
             ownedMachineGroupBuilder.ToJson();
             ownedMachineGroupBuilder.Ignore(mg => mg.OpdbIdentifier);
         });
+
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Id).ValueGeneratedNever();
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Created).HasDefaultValueSql("sysdatetimeoffset()");
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.Updated).HasDefaultValueSql("sysdatetimeoffset()");
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachines)
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine),
+                json => JsonSerializer.Deserialize(json, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine));
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachineGroups)
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup),
+                json => JsonSerializer.Deserialize(json,
+                    OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup));
+        modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballManufacturers)
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer),
+                json => JsonSerializer.Deserialize(json,
+                    OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer));
+
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
 

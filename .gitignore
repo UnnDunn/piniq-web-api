@@ -265,3 +265,7 @@ __pycache__/
 
 # certificates
 **/*.p8
+
+# Windows and macOS cache files
+**/*.DS_Store
+**/Thumbs.db
