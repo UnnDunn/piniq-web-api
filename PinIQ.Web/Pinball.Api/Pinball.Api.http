@@ -1,6 +1,8 @@
 ﻿GET {{Pinball.Api_HostAddress}}/login/TestToken?testKey=thisIsATest
 
-> {% client.global.set("AccessToken", response.body.accessToken); %}
+> {%
+    client.global.set("AccessToken", response.body.accessToken);
+%}
 
 ###
 

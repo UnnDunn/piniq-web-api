@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,8 +17,6 @@ namespace Pinball.Api.Data;
 
 public partial class PinballDbContext : PinballMachineDataContext
 {
-    private const string SqlCaseInsensitiveCollationName = "SQL_Latin1_General_CP1_CS_AS";
-
     // private readonly string _caseInsensitiveCollationName = SqlCaseInsensitiveCollationName;
     private readonly ILogger<PinballDbContext> _logger;
 
@@ -30,9 +27,9 @@ public partial class PinballDbContext : PinballMachineDataContext
         SavingChanges += SetCatalogSnapshotDigestInformation;
     }
 
-    public DbSet<OpdbCatalogSnapshot> CatalogSnapshots { get; set; } = null!;
-    public DbSet<CatalogChangelog> CatalogChangelogs { get; set; } = null!;
-    public DbSet<OpdbChangelog> OpdbChangelogs { get; set; } = null!;
+    public DbSet<OpdbCatalogSnapshot> CatalogSnapshots { get; init; } = null!;
+    public DbSet<CatalogChangelog> CatalogChangelogs { get; init; } = null!;
+    public DbSet<OpdbChangelog> OpdbChangelogs { get; init; } = null!;
 
 
     private void SetCatalogSnapshotDigestInformation(object? sender, SavingChangesEventArgs e)
@@ -40,15 +37,16 @@ public partial class PinballDbContext : PinballMachineDataContext
         LogSettingCatalogSnapshotDigestInformation();
         foreach (var entity in ChangeTracker.Entries<OpdbCatalogSnapshot>().ToList())
         {
-            if (entity.State is not (EntityState.Added or EntityState.Modified)) 
+            if (entity.State is not (EntityState.Added or EntityState.Modified))
                 // entity unchanged, so skip
                 continue;
             if (string.IsNullOrEmpty(entity.Entity.MachineJsonResponse) ||
-                string.IsNullOrEmpty(entity.Entity.MachineGroupJsonResponse)) 
+                string.IsNullOrEmpty(entity.Entity.MachineGroupJsonResponse))
                 // no json response content to generate digest data from, so skip
                 continue;
-            if (entity.State is EntityState.Modified && !entity.Property(e => e.MachineJsonResponse).IsModified &&
-                !entity.Property(e => e.MachineGroupJsonResponse).IsModified)
+            if (entity.State is EntityState.Modified &&
+                !entity.Property(entry => entry.MachineJsonResponse).IsModified &&
+                !entity.Property(entry => entry.MachineGroupJsonResponse).IsModified)
                 // json response content is unchanged, so skip
                 continue;
             try
@@ -57,7 +55,7 @@ public partial class PinballDbContext : PinballMachineDataContext
                 using var mgs = new MemoryStream(Encoding.UTF8.GetBytes(entity.Entity.MachineGroupJsonResponse));
                 var machines =
                     JsonSerializer.Deserialize(ms, OpdbJsonSerializerContext.Default.ListMachine);
-                
+
                 var machineGroups = JsonSerializer.Deserialize(mgs,
                     OpdbJsonSerializerContext.Default.ListMachineGroup);
 
@@ -75,7 +73,7 @@ public partial class PinballDbContext : PinballMachineDataContext
                     var equalityHash = machineGroup.CalculateMachineGroupHash();
                     machineGroup.EqualityHash = equalityHash;
                 }
-                
+
                 entity.Entity.Machines = machines;
                 entity.Entity.MachineGroups = machineGroups;
 
@@ -131,12 +129,13 @@ public partial class PinballDbContext : PinballMachineDataContext
             ownedMachineGroupBuilder.ToJson();
             ownedMachineGroupBuilder.Ignore(mg => mg.OpdbIdentifier);
         });
-        
+
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.Id).ValueGeneratedNever();
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.Updated).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachines)
-            .HasConversion(cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine),
+            .HasConversion(
+                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine),
                 json => JsonSerializer.Deserialize(json, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine));
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachineGroups)
             .HasConversion(
@@ -148,7 +147,7 @@ public partial class PinballDbContext : PinballMachineDataContext
                 cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer),
                 json => JsonSerializer.Deserialize(json,
                     OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer));
-        
+
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");
 
