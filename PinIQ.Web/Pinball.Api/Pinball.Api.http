@@ -1,5 +1,20 @@
-﻿@Pinball.Api_HostAddress = http://localhost:8080
+﻿GET {{Pinball.Api_HostAddress}}/login/TestToken?testKey=thisIsATest
 
-GET {{Pinball.Api_HostAddress}}/api/login/TestToken?testKey=thisIsATest
+> {%
+    client.global.set("AccessToken", response.body.accessToken);
+%}
 
 ###
+
+GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots
+Authorization: Bearer {{AccessToken}}
+
+###
+
+GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/1
+Authorization: Bearer {{AccessToken}}
+
+###
+
+POST {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/Import
+Authorization: Bearer {{AccessToken}}

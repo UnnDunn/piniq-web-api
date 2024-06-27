@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pinball.Api.Data;
 
@@ -11,9 +12,11 @@ using Pinball.Api.Data;
 namespace Pinball.Api.Data.Migrations
 {
     [DbContext(typeof(PinballDbContext))]
-    partial class PinballDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240624223659_RestoreUpdatedPinballSchema")]
+    partial class RestoreUpdatedPinballSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,35 +24,6 @@ namespace Pinball.Api.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Pinball.Entities.Core.Entities.CatalogChangelog", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset>("Created")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetimeoffset")
-                        .HasDefaultValueSql("sysdatetimeoffset()");
-
-                    b.Property<string>("PinballMachineGroups")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PinballMachines")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PinballManufacturers")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("Updated")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetimeoffset")
-                        .HasDefaultValueSql("sysdatetimeoffset()");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CatalogChangelogs");
-                });
 
             modelBuilder.Entity("Pinball.Entities.Data.Opdb.OpdbCatalogSnapshot", b =>
                 {

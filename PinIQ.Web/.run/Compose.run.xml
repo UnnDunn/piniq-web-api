@@ -3,6 +3,14 @@
     <deployment type="docker-compose.yml">
       <settings>
         <option name="envFilePath" value="" />
+        <option name="envVars">
+          <list>
+            <DockerEnvVarImpl>
+              <option name="name" value="PATH" />
+              <option name="value" value="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/microsoft/powershell/7:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/Library/Apple/usr/bin:/usr/local/share/dotnet:~/.dotnet/tools:/Applications/iTerm.app/Contents/Resources/utilities" />
+            </DockerEnvVarImpl>
+          </list>
+        </option>
         <option name="commandLineOptions" value="--build" />
         <option name="sourceFilePath" value="compose.yaml" />
       </settings>

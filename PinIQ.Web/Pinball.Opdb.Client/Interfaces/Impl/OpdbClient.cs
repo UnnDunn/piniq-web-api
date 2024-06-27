@@ -11,8 +11,8 @@ namespace Pinball.OpdbClient.Interfaces.Impl;
 
 public class OpdbClient : IOpdbClient
 {
-    private readonly OpdbClientOptions _options;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly OpdbClientOptions _options;
 
     public OpdbClient(IHttpClientFactory httpClient, IOptionsMonitor<OpdbClientOptions> optionsAccessor)
     {

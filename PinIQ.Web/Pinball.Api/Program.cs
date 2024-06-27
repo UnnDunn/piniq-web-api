@@ -203,7 +203,7 @@ public partial class Program
         try
         {
             var context = services.GetRequiredService<PinballDbContext>();
-            await context.Database.EnsureCreatedAsync();
+            await context.Database.MigrateAsync();
         }
         catch (Exception ex)
         {

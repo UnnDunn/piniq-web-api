@@ -61,7 +61,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
     /// <summary>
-    /// Refreshes the cached metadata for all catalog snapshots in the database
+    ///     Refreshes the cached metadata for all catalog snapshots in the database
     /// </summary>
     public async Task RefreshCatalogSnapshotsAsync()
     {
@@ -78,7 +78,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
     /// <summary>
-    /// Refreshes the cached metadata for the selected catalog snapshot in the database
+    ///     Refreshes the cached metadata for the selected catalog snapshot in the database
     /// </summary>
     /// <param name="id">ID of the catalog snapshot to refresh</param>
     /// <exception cref="KeyNotFoundException">Thrown if a snapshot with the given ID is not found</exception>
@@ -96,7 +96,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
     /// <summary>
-    /// Retrieves a single catalog snapshot including machine data
+    ///     Retrieves a single catalog snapshot including machine data
     /// </summary>
     /// <param name="id">ID of the snapshot to retrieve</param>
     /// <returns>The selected catalog snapshot, or null if one matching the indicated ID was not found</returns>
@@ -126,7 +126,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
     /// <summary>
-    /// Retrieves a collection of catalog snapshots matching the given IDs
+    ///     Retrieves a collection of catalog snapshots matching the given IDs
     /// </summary>
     /// <param name="ids">IDs of the snapshots to retrieve</param>
     /// <returns>A list of the selected snapshots. The list will be empty if matching snapshots were not found</returns>
@@ -158,7 +158,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     }
 
     /// <summary>
-    /// Gets the current published snapshot
+    ///     Gets the current published snapshot
     /// </summary>
     /// <returns>The current published snapshot, if it exists, or null if it does not</returns>
     public async Task<CatalogSnapshot?> GetPublishedCatalogSnapshotAsync()
@@ -221,11 +221,11 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         LogActionPublishCatalogSnapshot();
         // get all snapshots
         var allSnapshots = await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).ToListAsync();
-        
+
         // get selected or latest unpublished snapshot
-        var snapshotToPublish = id is not null 
-        ? await _dbContext.CatalogSnapshots.FindAsync(id)
-        : await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).FirstOrDefaultAsync();
+        var snapshotToPublish = id is not null
+            ? await _dbContext.CatalogSnapshots.FindAsync(id)
+            : await _dbContext.CatalogSnapshots.OrderByDescending(s => s.Imported).FirstOrDefaultAsync();
 
         if (snapshotToPublish == null)
         {
@@ -234,23 +234,22 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
                 LogIssueSelectedCatalogSnapshotNotFound(id.Value);
                 throw new CatalogSnapshotNotFoundException(id);
             }
+
             LogIssueNoCatalogSnapshotsFound();
             throw new CatalogSnapshotException("No snapshots found");
         }
-        
+
         LogProcessLatestCatalogSnapshotIdentified(snapshotToPublish.Id, snapshotToPublish.Imported);
         if (snapshotToPublish.Published is not null)
         {
             LogIssueCatalogSnapshotAlreadyPublished(snapshotToPublish.Id, snapshotToPublish.Published.Value);
-            throw new CatalogSnapshotException(snapshotToPublish.Id, "The selected snapshot has already been published");
+            throw new CatalogSnapshotException(snapshotToPublish.Id,
+                "The selected snapshot has already been published");
         }
-        
+
         // check to see if there are any newer published snapshots
         var newerSnapshots = allSnapshots.Any(s => s.Published is not null && s.Imported > snapshotToPublish.Imported);
-        if (newerSnapshots)
-        {
-            throw new CatalogSnapshotException("There are newer published snapshots");
-        }
+        if (newerSnapshots) throw new CatalogSnapshotException("There are newer published snapshots");
 
         var machines = snapshotToPublish.Machines;
         var machineGroups = snapshotToPublish.MachineGroups;
@@ -258,6 +257,9 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         if (machines is null || machineGroups is null)
             throw new Exception("Machine snapshot JSON could not be parsed.");
         await LoadMachineGroupsAsync(machineGroups);
+
+        // hold a dictionary of Machine Group Ids for later mapping
+        var machineGroupIds = await _dbContext.PinballMachineGroups.ToDictionaryAsync(p => p.OpdbId, p => p.Id);
 
         // manufacturers
         var manufacturers = machines
@@ -268,24 +270,24 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         // machines
         await LoadPinballMachinesAsync(machines);
 
+        // hold a dictionary of machine Ids for later mapping
+        var machineIds = await _dbContext.PinballMachines.ToDictionaryAsync(p => p.OpdbId, q => q.Id);
+
         // keywords
         await LoadKeywordsAsync(machines);
 
         // keyword mappings
-        await MapPinballKeywordsAsync(machines);
+        await MapPinballKeywordsAsync(machines, machineIds);
 
         // mark all snapshots as unpublished
-        foreach (var snapshot in allSnapshots)
-        {
-            snapshot.Published = null;
-        }
-        
+        foreach (var snapshot in allSnapshots) snapshot.Published = null;
+
         // mark snapshot as published
         snapshotToPublish.Published = DateTimeOffset.Now;
         LogProcessMarkingCatalogSnapshotAsPublished(snapshotToPublish.Id, snapshotToPublish.Published.Value);
         await _dbContext.SaveChangesAsync();
 
-        // get results
+        // // get results
         var machineTotal = await _dbContext.PinballMachines.CountAsync();
         var machineGroupsTotal = await _dbContext.PinballMachineGroups.CountAsync();
         var manufacturersTotal = await _dbContext.PinballManufacturers.CountAsync();
@@ -450,7 +452,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             .Distinct(new MachineGroupComparer())
             .Select(m => new PinballMachineGroup
             {
-                Id = m.OpdbId.ToString(),
+                OpdbId = m.OpdbId.ToString(),
                 Name = m.Name,
                 ShortName = m.Shortname,
                 Description = m.Description
@@ -489,14 +491,13 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
     {
         var newMachines = machines.Select(m => new PinballMachine
         {
-            Id = m.OpdbId.ToString(),
+            OpdbId = m.OpdbId.ToString(),
             CommonName = m.CommonName,
-            Name = m.Name ?? string.Empty,
+            Name = m.Name,
             IpdbId = m.IpdbId,
             ManufactureDate = m.ManufactureDate,
             ManufacturerId = m.Manufacturer?.ManufacturerId,
             PlayerCount = (short)m.PlayerCount,
-            MachineGroupId = m.OpdbIdentifier.GroupString,
             TypeId = m.MachineType
         }).ToList();
 
@@ -505,7 +506,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
     private async Task LoadKeywordsAsync(IEnumerable<Machine> machines)
     {
-        var newKeywords = machines.SelectMany(m => m.Keywords ?? new List<string>()).Distinct().ToList();
+        var newKeywords = machines.SelectMany(m => m.Keywords ?? []).Distinct().ToList();
 
         var savedKeywords = await _dbContext.PinballKeywords.ToDictionaryAsync(k => k.Name, k => k.Id);
 
@@ -520,7 +521,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         await _dbContext.BulkInsertAsync(newKeywordEntities);
     }
 
-    private async Task MapPinballKeywordsAsync(IEnumerable<Machine> machines)
+    private async Task MapPinballKeywordsAsync(IEnumerable<Machine> machines, Dictionary<string, int> machineIds)
     {
         var savedKeywords = await _dbContext.PinballKeywords.ToDictionaryAsync(k => k.Name, k => k.Id);
 
@@ -531,7 +532,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
             var mappings = machine.Keywords?.Select(kw => new PinballMachineKeywordMapping
             {
                 KeywordId = savedKeywords[kw],
-                MachineId = machine.OpdbId
+                MachineId = machineIds[machine.OpdbId]
             });
             if (mappings is not null)
                 keywordMappings.AddRange(mappings);

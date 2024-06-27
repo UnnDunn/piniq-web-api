@@ -13,11 +13,11 @@ namespace Pinball.Api.Helpers;
 public class StringReaderStream : Stream
 {
     private readonly Encoding encoding;
-    private readonly long length;
     private readonly string input;
     private readonly int inputLength;
-    private int inputPosition;
+    private readonly long length;
     private readonly int maxBytesPerChar;
+    private int inputPosition;
     private long position;
 
     public StringReaderStream(string input)
@@ -29,10 +29,10 @@ public class StringReaderStream : Stream
     {
         this.encoding = encoding ?? throw new ArgumentNullException(nameof(encoding));
         this.input = input;
-        inputLength = input == null ? 0 : input.Length;
+        inputLength = input.Length;
         if (!string.IsNullOrEmpty(input))
             length = encoding.GetByteCount(input);
-        maxBytesPerChar = encoding == Encoding.ASCII ? 1 : encoding.GetMaxByteCount(1);
+        maxBytesPerChar = Equals(encoding, Encoding.ASCII) ? 1 : encoding.GetMaxByteCount(1);
     }
 
     public override bool CanRead => true;
