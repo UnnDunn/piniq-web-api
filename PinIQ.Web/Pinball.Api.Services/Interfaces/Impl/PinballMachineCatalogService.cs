@@ -106,23 +106,27 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         var result = await _dbContext
             .CatalogSnapshots
             .AsNoTracking()
-            .Select(o => new CatalogSnapshot
-            {
-                Id = o.Id,
-                Imported = o.Imported,
-                Published = o.Published,
-                Machines = o.Machines,
-                MachineGroups = o.MachineGroups,
-                MachineCount = o.MachineCount,
-                MachineGroupCount = o.MachineGroupCount,
-                ManufacturerCount = o.ManufacturerCount,
-                KeywordCount = o.KeywordCount,
-                NewestMachine = o.NewestMachine,
-                Created = o.Created,
-                Updated = o.Updated
-            })
             .FirstOrDefaultAsync(o => o.Id == id);
-        return result;
+
+        if (result is null) return null;
+        
+        var snapshotResult = new CatalogSnapshot
+        {
+            Id = result.Id,
+            Imported = result.Imported,
+            Published = result.Published,
+            Machines = result.Machines,
+            MachineGroups = result.MachineGroups,
+            Manufacturers = result.Manufacturers,
+            MachineCount = result.MachineCount,
+            MachineGroupCount = result.MachineGroupCount,
+            ManufacturerCount = result.ManufacturerCount,
+            KeywordCount = result.KeywordCount,
+            NewestMachine = result.NewestMachine,
+            Created = result.Created,
+            Updated = result.Updated
+        };
+        return snapshotResult;
     }
 
     /// <summary>
@@ -173,6 +177,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
                 Machines = o.Machines,
                 MachineGroups = o.MachineGroups,
                 MachineCount = o.MachineCount,
+                Manufacturers = o.Manufacturers,
                 MachineGroupCount = o.MachineGroupCount,
                 ManufacturerCount = o.ManufacturerCount,
                 KeywordCount = o.KeywordCount,
@@ -253,6 +258,7 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
 
         var machines = snapshotToPublish.Machines;
         var machineGroups = snapshotToPublish.MachineGroups;
+        var manufacturers = snapshotToPublish.Manufacturers;
 
         if (machines is null || machineGroups is null)
             throw new Exception("Machine snapshot JSON could not be parsed.");
@@ -262,9 +268,6 @@ public partial class PinballMachineCatalogService : IPinballMachineCatalogServic
         var machineGroupIds = await _dbContext.PinballMachineGroups.ToDictionaryAsync(p => p.OpdbId, p => p.Id);
 
         // manufacturers
-        var manufacturers = machines
-            .Where(m => m.Manufacturer != null)
-            .Select(m => m.Manufacturer).Distinct(new ManufacturerComparer()).ToList();
         await LoadManufacturersAsync(manufacturers);
 
         // machines

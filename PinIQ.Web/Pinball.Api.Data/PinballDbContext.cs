@@ -6,6 +6,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Logging;
+using Pinball.Api.Data.Migrations;
+using Pinball.Entities.Api.Responses;
 using Pinball.Entities.Core.Entities;
 using Pinball.Entities.Data.Helpers;
 using Pinball.Entities.Data.Opdb;
@@ -61,9 +63,14 @@ public partial class PinballDbContext : PinballMachineDataContext
 
                 if (machines is null || machineGroups is null)
                     continue;
-
+                
+                // get manufacturers
+                var manufacturers = machines.Where(m => m.Manufacturer is not null).Select(m => m.Manufacturer!)
+                    .DistinctBy(mu => mu.ManufacturerId).ToList();
+                
                 foreach (var machine in machines)
                 {
+                    machine.ManufacturerId = machine.Manufacturer?.ManufacturerId;
                     var hashCode = machine.CalculateMachineHash();
                     machine.EqualityHash = hashCode;
                 }
@@ -76,14 +83,11 @@ public partial class PinballDbContext : PinballMachineDataContext
 
                 entity.Entity.Machines = machines;
                 entity.Entity.MachineGroups = machineGroups;
+                entity.Entity.Manufacturers = manufacturers;
 
                 entity.Entity.MachineCount = machines.Count;
                 entity.Entity.MachineGroupCount = machineGroups.Count;
-                entity.Entity.ManufacturerCount = machines
-                    .Where(m => m.Manufacturer != null)
-                    .Select(m => m.Manufacturer?.ManufacturerId)
-                    .Distinct()
-                    .Count();
+                entity.Entity.ManufacturerCount = manufacturers.Count;
                 entity.Entity.KeywordCount = machines.SelectMany(m => m.Keywords ?? [])
                     .Distinct().Count();
 
@@ -121,13 +125,20 @@ public partial class PinballDbContext : PinballMachineDataContext
         {
             ownedMachineBuilder.ToJson();
             ownedMachineBuilder.Ignore(m => m.OpdbIdentifier);
-            ownedMachineBuilder.OwnsOne(m => m.Manufacturer,
-                ownedManufacturerBuilder => { ownedManufacturerBuilder.ToJson(); });
+            ownedMachineBuilder.Ignore(m => m.Manufacturer);
         });
         modelBuilder.Entity<OpdbCatalogSnapshot>().OwnsMany(cs => cs.MachineGroups, ownedMachineGroupBuilder =>
         {
             ownedMachineGroupBuilder.ToJson();
             ownedMachineGroupBuilder.Ignore(mg => mg.OpdbIdentifier);
+        });
+        modelBuilder.Entity<OpdbCatalogSnapshot>().OwnsMany(cs => cs.Manufacturers, ownedManufacturerBuilder =>
+        {
+            ownedManufacturerBuilder.ToTable("CatalogSnapshotManufacturers");
+            ownedManufacturerBuilder.WithOwner().HasForeignKey("CatalogSnapshotId");
+            ownedManufacturerBuilder.Property(m => m.ManufacturerId).ValueGeneratedNever();
+            ownedManufacturerBuilder.Property(m => m.Name).HasMaxLength(30);
+            ownedManufacturerBuilder.Property(m => m.FullName).HasMaxLength(100);
         });
 
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.Id).ValueGeneratedNever();
@@ -135,18 +146,18 @@ public partial class PinballDbContext : PinballMachineDataContext
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.Updated).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachines)
             .HasConversion(
-                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine),
-                json => JsonSerializer.Deserialize(json, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachine));
+                cl => JsonSerializer.Serialize(cl!, PiniqJsonSerializerContext.Default.ChangelogEntitiesMachineString),
+                json => JsonSerializer.Deserialize(json, PiniqJsonSerializerContext.Default.ChangelogEntitiesMachineString));
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballMachineGroups)
             .HasConversion(
-                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup),
+                cl => JsonSerializer.Serialize(cl!, PiniqJsonSerializerContext.Default.ChangelogEntitiesMachineGroupString),
                 json => JsonSerializer.Deserialize(json,
-                    OpdbJsonSerializerContext.Default.ChangelogEntitiesMachineGroup));
+                    PiniqJsonSerializerContext.Default.ChangelogEntitiesMachineGroupString));
         modelBuilder.Entity<CatalogChangelog>().Property(c => c.PinballManufacturers)
             .HasConversion(
-                cl => JsonSerializer.Serialize(cl!, OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer),
+                cl => JsonSerializer.Serialize(cl!, PiniqJsonSerializerContext.Default.ChangelogEntitiesManufacturer),
                 json => JsonSerializer.Deserialize(json,
-                    OpdbJsonSerializerContext.Default.ChangelogEntitiesManufacturer));
+                    PiniqJsonSerializerContext.Default.ChangelogEntitiesManufacturer));
 
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Created).HasDefaultValueSql("sysdatetimeoffset()");
         modelBuilder.Entity<OpdbChangelog>().Property(g => g.Updated).HasDefaultValueSql("sysdatetimeoffset()");

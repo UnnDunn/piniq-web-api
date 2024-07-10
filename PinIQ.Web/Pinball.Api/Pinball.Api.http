@@ -11,10 +11,15 @@ Authorization: Bearer {{AccessToken}}
 
 ###
 
-GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/1
+GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/3007
 Authorization: Bearer {{AccessToken}}
 
 ###
 
 POST {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/Import
+Authorization: Bearer {{AccessToken}}
+
+###
+
+POST {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/Refresh/2007
 Authorization: Bearer {{AccessToken}}

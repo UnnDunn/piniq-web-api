@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pinball.Api.Data;
 
@@ -11,13 +12,15 @@ using Pinball.Api.Data;
 namespace Pinball.Api.Data.Migrations
 {
     [DbContext(typeof(PinballDbContext))]
-    partial class PinballDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240710010117_SeparateManufacturers")]
+    partial class SeparateManufacturers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.7")
+                .HasAnnotation("ProductVersion", "8.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -358,33 +361,42 @@ namespace Pinball.Api.Data.Migrations
                 {
                     b.OwnsMany("Pinball.Entities.Opdb.Manufacturer", "Manufacturers", b1 =>
                         {
-                            b1.Property<int>("CatalogSnapshotId")
+                            b1.Property<int>("OpdbCatalogSnapshotId")
                                 .HasColumnType("int");
 
-                            b1.Property<int>("ManufacturerId")
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
                                 .HasColumnType("int");
 
                             b1.Property<DateTime>("CreatedAt")
-                                .HasColumnType("datetime2");
+                                .HasColumnType("datetime2")
+                                .HasAnnotation("Relational:JsonPropertyName", "created_at");
 
                             b1.Property<string>("FullName")
-                                .HasMaxLength(100)
-                                .HasColumnType("nvarchar(100)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "full_name");
+
+                            b1.Property<int>("ManufacturerId")
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "manufacturer_id");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "name");
 
                             b1.Property<DateTime>("UpdatedAt")
-                                .HasColumnType("datetime2");
+                                .HasColumnType("datetime2")
+                                .HasAnnotation("Relational:JsonPropertyName", "updated_at");
 
-                            b1.HasKey("CatalogSnapshotId", "ManufacturerId");
+                            b1.HasKey("OpdbCatalogSnapshotId", "Id");
 
-                            b1.ToTable("CatalogSnapshotManufacturers", (string)null);
+                            b1.ToTable("CatalogSnapshots");
+
+                            b1.ToJson("Manufacturers");
 
                             b1.WithOwner()
-                                .HasForeignKey("CatalogSnapshotId");
+                                .HasForeignKey("OpdbCatalogSnapshotId");
                         });
 
                     b.OwnsMany("Pinball.Entities.Opdb.Machine", "Machines", b1 =>
@@ -397,51 +409,64 @@ namespace Pinball.Api.Data.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<string>("CommonName")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "common_name");
 
                             b1.Property<string>("Description")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "description");
 
                             b1.Property<string>("Display")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "display");
 
                             b1.Property<int>("EqualityHash")
                                 .HasColumnType("int");
 
                             b1.Property<string>("Features")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "features");
 
                             b1.Property<int?>("IpdbId")
-                                .HasColumnType("int");
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "ipdb_id");
 
                             b1.Property<string>("Keywords")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "keywords");
 
                             b1.Property<string>("MachineType")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "type");
 
                             b1.Property<DateTime?>("ManufactureDate")
-                                .HasColumnType("datetime2");
+                                .HasColumnType("datetime2")
+                                .HasAnnotation("Relational:JsonPropertyName", "manufacture_date");
 
                             b1.Property<int?>("ManufacturerId")
                                 .HasColumnType("int");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "name");
 
                             b1.Property<string>("OpdbId")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "opdb_id");
 
                             b1.Property<int>("PhysicalMachine")
-                                .HasColumnType("int");
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "physical_machine");
 
                             b1.Property<int>("PlayerCount")
-                                .HasColumnType("int");
+                                .HasColumnType("int")
+                                .HasAnnotation("Relational:JsonPropertyName", "player_count");
 
                             b1.Property<string>("Shortname")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "shortname");
 
                             b1.HasKey("OpdbCatalogSnapshotId", "Id");
 
@@ -451,6 +476,52 @@ namespace Pinball.Api.Data.Migrations
 
                             b1.WithOwner()
                                 .HasForeignKey("OpdbCatalogSnapshotId");
+
+                            b1.OwnsOne("Pinball.Entities.Opdb.Manufacturer", "Manufacturer", b2 =>
+                                {
+                                    b2.Property<int>("MachineOpdbCatalogSnapshotId")
+                                        .HasColumnType("int");
+
+                                    b2.Property<int>("MachineId")
+                                        .HasColumnType("int");
+
+                                    b2.Property<DateTime>("CreatedAt")
+                                        .HasColumnType("datetime2")
+                                        .HasAnnotation("Relational:JsonPropertyName", "created_at");
+
+                                    b2.Property<string>("FullName")
+                                        .HasColumnType("nvarchar(max)")
+                                        .HasAnnotation("Relational:JsonPropertyName", "full_name");
+
+                                    b2.Property<int>("Id")
+                                        .HasColumnType("int");
+
+                                    b2.Property<int>("ManufacturerId")
+                                        .HasColumnType("int")
+                                        .HasAnnotation("Relational:JsonPropertyName", "manufacturer_id");
+
+                                    b2.Property<string>("Name")
+                                        .IsRequired()
+                                        .HasColumnType("nvarchar(max)")
+                                        .HasAnnotation("Relational:JsonPropertyName", "name");
+
+                                    b2.Property<DateTime>("UpdatedAt")
+                                        .HasColumnType("datetime2")
+                                        .HasAnnotation("Relational:JsonPropertyName", "updated_at");
+
+                                    b2.HasKey("MachineOpdbCatalogSnapshotId", "MachineId");
+
+                                    b2.ToTable("CatalogSnapshots");
+
+                                    b2
+                                        .ToJson("Manufacturer")
+                                        .HasAnnotation("Relational:JsonPropertyName", "manufacturer");
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("MachineOpdbCatalogSnapshotId", "MachineId");
+                                });
+
+                            b1.Navigation("Manufacturer");
                         });
 
                     b.OwnsMany("Pinball.Entities.Opdb.MachineGroup", "MachineGroups", b1 =>
@@ -463,27 +534,33 @@ namespace Pinball.Api.Data.Migrations
                                 .HasColumnType("int");
 
                             b1.Property<DateTime>("CreatedAt")
-                                .HasColumnType("datetime2");
+                                .HasColumnType("datetime2")
+                                .HasAnnotation("Relational:JsonPropertyName", "created_at");
 
                             b1.Property<string>("Description")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "description");
 
                             b1.Property<int>("EqualityHash")
                                 .HasColumnType("int");
 
                             b1.Property<string>("Name")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "name");
 
                             b1.Property<string>("OpdbId")
                                 .IsRequired()
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "opdb_id");
 
                             b1.Property<string>("Shortname")
-                                .HasColumnType("nvarchar(max)");
+                                .HasColumnType("nvarchar(max)")
+                                .HasAnnotation("Relational:JsonPropertyName", "shortname");
 
                             b1.Property<DateTime>("UpdatedAt")
-                                .HasColumnType("datetime2");
+                                .HasColumnType("datetime2")
+                                .HasAnnotation("Relational:JsonPropertyName", "updated_at");
 
                             b1.HasKey("OpdbCatalogSnapshotId", "Id");
 

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Pinball.Api.Data;
 
@@ -11,9 +12,11 @@ using Pinball.Api.Data;
 namespace Pinball.Api.Data.Migrations
 {
     [DbContext(typeof(PinballDbContext))]
-    partial class PinballDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240710153140_RefactorOpdbEntities")]
+    partial class RefactorOpdbEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -356,37 +359,6 @@ namespace Pinball.Api.Data.Migrations
 
             modelBuilder.Entity("Pinball.Entities.Data.Opdb.OpdbCatalogSnapshot", b =>
                 {
-                    b.OwnsMany("Pinball.Entities.Opdb.Manufacturer", "Manufacturers", b1 =>
-                        {
-                            b1.Property<int>("CatalogSnapshotId")
-                                .HasColumnType("int");
-
-                            b1.Property<int>("ManufacturerId")
-                                .HasColumnType("int");
-
-                            b1.Property<DateTime>("CreatedAt")
-                                .HasColumnType("datetime2");
-
-                            b1.Property<string>("FullName")
-                                .HasMaxLength(100)
-                                .HasColumnType("nvarchar(100)");
-
-                            b1.Property<string>("Name")
-                                .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)");
-
-                            b1.Property<DateTime>("UpdatedAt")
-                                .HasColumnType("datetime2");
-
-                            b1.HasKey("CatalogSnapshotId", "ManufacturerId");
-
-                            b1.ToTable("CatalogSnapshotManufacturers", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("CatalogSnapshotId");
-                        });
-
                     b.OwnsMany("Pinball.Entities.Opdb.Machine", "Machines", b1 =>
                         {
                             b1.Property<int>("OpdbCatalogSnapshotId")
@@ -490,6 +462,38 @@ namespace Pinball.Api.Data.Migrations
                             b1.ToTable("CatalogSnapshots");
 
                             b1.ToJson("MachineGroups");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OpdbCatalogSnapshotId");
+                        });
+
+                    b.OwnsMany("Pinball.Entities.Opdb.Manufacturer", "Manufacturers", b1 =>
+                        {
+                            b1.Property<int>("OpdbCatalogSnapshotId")
+                                .HasColumnType("int");
+
+                            b1.Property<int>("ManufacturerId")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("int");
+
+                            b1.Property<DateTime>("CreatedAt")
+                                .HasColumnType("datetime2");
+
+                            b1.Property<string>("FullName")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<DateTime>("UpdatedAt")
+                                .HasColumnType("datetime2");
+
+                            b1.HasKey("OpdbCatalogSnapshotId", "ManufacturerId");
+
+                            b1.ToTable("CatalogSnapshots");
+
+                            b1.ToJson("Manufacturers");
 
                             b1.WithOwner()
                                 .HasForeignKey("OpdbCatalogSnapshotId");
