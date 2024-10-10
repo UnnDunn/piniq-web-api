@@ -1,0 +1,15 @@
+﻿<Solution>
+  <Folder Name="/Data/">
+    <Project Path="Pinball.Api.Data\Pinball.Api.Data.csproj" />
+  </Folder>
+  <Folder Name="/Data/SQL Snippets/">
+    <File Path="Pinball Machine Queries.sql" />
+  </Folder>
+  <Folder Name="/Front-End/">
+    <Project Path="Pinball.Api\Pinball.Api.csproj" />
+  </Folder>
+  <Folder Name="/Services/">
+    <Project Path="Pinball.Api.Services\Pinball.Api.Services.csproj" />
+    <Project Path="Pinball.Opdb.Client\Pinball.OpdbClient.csproj" />
+  </Folder>
+</Solution>
