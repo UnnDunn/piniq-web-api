@@ -16,7 +16,7 @@ stages:
 
         variables:
           buildConfiguration: "Release"
-          dotnetSdkVersion: "8.x"
+          dotnetSdkVersion: "9.x"
 
         steps:
           - task: UseDotNet@2
