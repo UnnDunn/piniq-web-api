@@ -11,7 +11,7 @@ Authorization: Bearer {{AccessToken}}
 
 ###
 
-GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/3007
+GET {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/3008
 Authorization: Bearer {{AccessToken}}
 
 ###
