@@ -4,7 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using Pinball.Api.Entities.SignalR;
 using Pinball.Api.Services.Entities.Exceptions;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Entities.Api.Responses.PinballCatalog;
@@ -19,11 +21,13 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
 {
     private readonly IPinballMachineCatalogService _catalogService;
     private readonly ILogger<PinballMachineCatalogSnapshotsController> _logger;
+    private readonly IHubContext<PinballCatalogNotificationHub, IPinballCatalogNotificationClient> _hubContext;
 
     public PinballMachineCatalogSnapshotsController(IPinballMachineCatalogService catalogService,
-        ILogger<PinballMachineCatalogSnapshotsController> logger)
+        ILogger<PinballMachineCatalogSnapshotsController> logger, IHubContext<PinballCatalogNotificationHub, IPinballCatalogNotificationClient> hubContext)
     {
         _logger = logger;
+        _hubContext = hubContext;
         _catalogService = catalogService;
     }
 
@@ -43,6 +47,7 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
         try
         {
             var snapshot = await _catalogService.ImportNewCatalogSnapshotAsync();
+            await _hubContext.Clients.All.AddCatalogSnapshot(snapshot);
             return CreatedAtAction(nameof(Get), new { id = snapshot.Id }, snapshot);
         }
         catch (OpdbException o)
@@ -79,6 +84,7 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
         try
         {
             var result = await _catalogService.PublishCatalogSnapshotAsync();
+            await _hubContext.Clients.All.PublishCatalogSnapshot(result);
             return Ok(result);
         }
         catch (CatalogSnapshotException ex)
@@ -97,6 +103,7 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
         try
         {
             var result = await _catalogService.PublishCatalogSnapshotAsync(id);
+            await _hubContext.Clients.All.PublishCatalogSnapshot(result);
             return Ok(result);
         }
         catch (CatalogSnapshotException ex)
@@ -164,6 +171,7 @@ public partial class PinballMachineCatalogSnapshotsController : ControllerBase
         try
         {
             await _catalogService.DeleteCatalogSnapshotAsync(id);
+            await _hubContext.Clients.All.RemoveCatalogSnapshot(id);
             return Ok();
         }
         catch (CatalogSnapshotNotFoundException cex)

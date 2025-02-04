@@ -23,3 +23,8 @@ Authorization: Bearer {{AccessToken}}
 
 POST {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/Refresh/2007
 Authorization: Bearer {{AccessToken}}
+
+###
+
+DELETE {{Pinball.Api_HostAddress}}/api/admin/PinballMachineCatalogSnapshots/3009
+Authorization: Bearer {{AccessToken}}

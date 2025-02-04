@@ -18,6 +18,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Pinball.Api.Data;
 using Pinball.Api.Entities.Configuration;
+using Pinball.Api.Entities.SignalR;
 using Pinball.Api.Services.Entities.Configuration;
 using Pinball.Api.Services.Interfaces;
 using Pinball.Api.Services.Interfaces.Impl;
@@ -152,6 +153,8 @@ public partial class Program
             .AddJsonOptions(static options =>
                 options.JsonSerializerOptions.TypeInfoResolverChain.Add(PiniqJsonSerializerContext.Default));
 
+        builder.Services.AddSignalR();
+
         builder.Services.AddMvcCore().AddApiExplorer();
 
         builder.Services.AddAuthorization(o =>
@@ -159,6 +162,11 @@ public partial class Program
             o.FallbackPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();
+        });
+        
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(b => b.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
         });
 
         builder.Services.AddSwaggerGen(c =>
@@ -174,13 +182,17 @@ public partial class Program
             app.UseExceptionHandler("/error");
 
         app.UseHttpsRedirection();
-
+        
+        app.UseCors();
+        
         app.UseRouting();
 
         app.UseAuthorization();
 
         app.MapControllers();
-
+        
+        app.MapHub<PinballCatalogNotificationHub>("/catalogNotificationHub");
+        
         app.UseSwagger();
 
         app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v1/swagger.json", "PinIQ API V1"); });
